@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="theme-color" content="#0d3d2e"/>
+<title>Remedios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0b2d22;--surface:#122e22;--card:#1a3d2e;--card2:#1f4535;
+  --green:#2ecc8a;--green2:#1aab6d;--green-dim:#1a5c42;
+  --text:#e8f5ee;--text2:#8ab89e;--text3:#4a7a5e;
+  --red:#ff6b6b;--red-bg:#2d1a1a;--amber:#f5c842;--amber-bg:#2d2710;
+  --blue:#5bc4f5;--purple:#b388ff;--coral:#ff8a65;
+  --radius:14px;--radius-sm:9px;--font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden;}
+#app{display:flex;flex-direction:column;height:100vh;max-width:480px;margin:0 auto;position:relative;}
+
+/* HEADER */
+.hdr{background:var(--surface);padding:16px 18px 12px;border-bottom:1px solid rgba(46,204,138,0.12);flex-shrink:0;}
+.hdr-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+.hdr-title{font-size:18px;font-weight:600;color:var(--text);letter-spacing:-0.3px;}
+.hdr-sub{font-size:12px;color:var(--text2);margin-top:1px;}
+.hdr-cfg{background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:2px 6px;line-height:1;}
+.progress-bar{height:3px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;margin-top:10px;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--green2),var(--green));border-radius:3px;transition:width 0.5s ease;}
+.hdr-stats{display:flex;gap:16px;margin-top:10px;}
+.hdr-stat{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px;}
+.hdr-stat strong{color:var(--text);font-size:12px;font-weight:500;}
+.cuadre-badge{font-size:11px;padding:2px 10px;border-radius:20px;font-weight:500;margin-left:auto;}
+.cuadre-ok{background:rgba(46,204,138,0.15);color:var(--green);}
+.cuadre-off{background:rgba(255,107,107,0.15);color:var(--red);}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch;}
+.content::-webkit-scrollbar{display:none;}
+
+/* SEARCH */
+.search-wrap{position:relative;margin-bottom:10px;}
+.search-wrap input{width:100%;padding:11px 14px 11px 40px;background:var(--card);border:1px solid rgba(46,204,138,0.12);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:15px;outline:none;}
+.search-wrap input::placeholder{color:var(--text3);}
+.search-wrap input:focus{border-color:rgba(46,204,138,0.35);}
+.search-ico{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:16px;pointer-events:none;}
+
+/* FILTERS */
+.filters{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px;}
+.filters::-webkit-scrollbar{display:none;}
+.fbtn{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid rgba(255,255,255,0.1);background:var(--card);color:var(--text2);font-size:12px;font-family:var(--font);cursor:pointer;white-space:nowrap;}
+.fbtn.on{background:var(--green);border-color:var(--green);color:#0b2d22;font-weight:600;}
+
+/* SECTION LABEL */
+.sec{font-size:10px;font-weight:600;letter-spacing:0.08em;color:var(--text3);text-transform:uppercase;margin:10px 0 6px;padding-left:2px;}
+
+/* PATIENT CARD */
+.pcard{background:var(--card);border:1px solid rgba(46,204,138,0.08);border-radius:var(--radius);padding:12px 14px;margin-bottom:7px;cursor:pointer;transition:border-color 0.2s,background 0.2s;display:flex;align-items:center;gap:12px;position:relative;overflow:hidden;}
+.pcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;}
+.pcard.pending::before{background:var(--text3);}
+.pcard.done::before{background:var(--green);}
+.pcard.done{background:rgba(26,91,66,0.35);border-color:rgba(46,204,138,0.18);}
+.pcard:active{transform:scale(0.985);}
+.bag-num{background:var(--green);color:#0b2d22;font-size:13px;font-weight:700;font-family:var(--mono);padding:5px 9px;border-radius:8px;min-width:42px;text-align:center;flex-shrink:0;}
+.pcard.done .bag-num{background:var(--green-dim);color:var(--green);}
+.pcard-body{flex:1;min-width:0;}
+.pcard-name{font-size:14px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pcard.done .pcard-name{text-decoration:line-through;color:var(--text2);}
+.pcard-row{display:flex;align-items:center;gap:8px;margin-top:2px;flex-wrap:wrap;}
+.pcard-price{font-size:13px;color:var(--green);font-weight:500;font-family:var(--mono);}
+.pcard-code{font-size:11px;color:var(--text3);font-family:var(--mono);background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:5px;}
+.pcard-note{font-size:11px;color:var(--text2);font-style:italic;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pcard-date{font-size:10px;color:var(--text3);margin-top:2px;}
+.status-pill{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;flex-shrink:0;}
+.sp-pending{background:rgba(255,255,255,0.06);color:var(--text3);}
+.sp-done{background:rgba(46,204,138,0.15);color:var(--green);}
+.sp-cash{background:rgba(245,200,66,0.15);color:var(--amber);}
+.sp-transfer{background:rgba(91,196,245,0.15);color:var(--blue);}
+.sp-pagado-esp{background:rgba(91,196,245,0.2);color:#5bc4f5;border:1px solid rgba(91,196,245,0.4);}
+.sp-liberado{background:rgba(179,136,255,0.15);color:var(--purple);}
+.sp-stock-sold{background:rgba(255,138,101,0.15);color:var(--coral);}
+/* CARD estados nuevos */
+.pcard.pagado-esperando::before{background:var(--blue);}
+.pcard.pagado-esperando{background:rgba(20,50,80,0.5);border-color:rgba(91,196,245,0.25);}
+.pcard.liberado::before{background:var(--purple);}
+.pcard.liberado{background:rgba(40,25,70,0.5);border-color:rgba(179,136,255,0.25);}
+.pcard.liberado .pcard-name{color:var(--text2);}
+.pcard.stock-sold::before{background:var(--coral);}
+.pcard.stock-sold{background:rgba(60,30,20,0.5);border-color:rgba(255,138,101,0.25);}
+.pcard.stock-sold .pcard-name{text-decoration:line-through;color:var(--text3);}
+
+/* TOTALS TAB */
+.total-hero{background:var(--card);border-radius:var(--radius);padding:20px;text-align:center;margin-bottom:10px;position:relative;overflow:hidden;}
+.total-hero::after{content:'$';position:absolute;right:-10px;top:-20px;font-size:120px;font-weight:700;color:rgba(46,204,138,0.04);line-height:1;}
+.total-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;}
+.total-big{font-size:36px;font-weight:600;color:var(--text);font-family:var(--mono);letter-spacing:-1px;}
+.total-exp{font-size:13px;color:var(--text2);margin-top:4px;}
+.cuadre-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);}
+.cuadre-lbl{font-size:12px;color:var(--text2);}
+.cuadre-val{font-size:13px;font-weight:600;font-family:var(--mono);}
+.cuadre-val.ok{color:var(--green);}
+.cuadre-val.off{color:var(--red);}
+.channels-card{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:10px;}
+.ch-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px;}
+.ch-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.05);}
+.ch-row:last-child{border-bottom:none;}
+.ch-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.ch-info{flex:1;}
+.ch-name{font-size:13px;color:var(--text);font-weight:500;}
+.ch-sub{font-size:11px;color:var(--text3);}
+.ch-amt{font-size:14px;font-weight:600;font-family:var(--mono);color:var(--text);}
+.pending-alert{background:var(--red-bg);border:1px solid rgba(255,107,107,0.2);border-radius:var(--radius);padding:14px;text-align:center;}
+.pending-alert p{font-size:12px;color:var(--red);margin-bottom:4px;}
+.pending-alert strong{font-size:22px;font-weight:600;font-family:var(--mono);color:var(--red);}
+
+/* CARGAR TAB */
+.cargar-card{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:10px;}
+.cargar-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;}
+.ocr-zone{border:1.5px dashed rgba(46,204,138,0.25);border-radius:var(--radius-sm);padding:20px;text-align:center;cursor:pointer;background:rgba(46,204,138,0.03);transition:border-color 0.2s;}
+.ocr-zone:active{border-color:var(--green);}
+.ocr-ico{font-size:28px;display:block;margin-bottom:6px;}
+.ocr-text{font-size:13px;color:var(--text2);}
+.ocr-tag{display:inline-block;background:var(--amber-bg);color:var(--amber);font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;margin-top:6px;}
+.photo-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.chip{display:flex;align-items:center;gap:4px;background:rgba(46,204,138,0.12);color:var(--green);font-size:11px;padding:4px 10px;border-radius:10px;}
+.divider-or{text-align:center;font-size:12px;color:var(--text3);margin:14px 0;}
+.finput{width:100%;padding:11px 13px;background:var(--card2);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:14px;outline:none;margin-bottom:8px;}
+.finput:focus{border-color:rgba(46,204,138,0.4);}
+.finput::placeholder{color:var(--text3);}
+.frow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:8px;}
+.frow2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:8px;}
+.ref-total-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.ref-label{font-size:12px;color:var(--text2);white-space:nowrap;}
+.btn-primary{width:100%;padding:13px;background:var(--green);color:#0b2d22;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;font-family:var(--font);cursor:pointer;letter-spacing:-0.2px;}
+.btn-primary:active{background:var(--green2);}
+.btn-secondary{width:100%;padding:11px;background:rgba(255,255,255,0.06);color:var(--text2);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);cursor:pointer;margin-top:8px;}
+.btn-secondary:active{background:rgba(255,255,255,0.1);}
+.btn-add{width:100%;padding:11px;background:rgba(46,204,138,0.1);color:var(--green);border:1px solid rgba(46,204,138,0.2);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font);cursor:pointer;}
+
+/* HISTORIAL */
+.hist-item{background:var(--card);border-radius:var(--radius);padding:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
+.hist-item:active{background:var(--card2);}
+.hist-month{font-size:14px;font-weight:500;color:var(--text);}
+.hist-sub{font-size:12px;color:var(--text3);margin-top:2px;}
+.hist-amt{text-align:right;}
+.hist-total{font-size:15px;font-weight:600;font-family:var(--mono);color:var(--green);}
+.hist-pct{font-size:11px;color:var(--text3);}
+
+/* NAV */
+.nav{display:flex;background:var(--surface);border-top:1px solid rgba(46,204,138,0.1);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom);}
+.nbtn{flex:1;padding:10px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;border:none;background:none;color:var(--text3);font-size:9px;font-family:var(--font);letter-spacing:0.03em;text-transform:uppercase;transition:color 0.2s;}
+.nbtn.on{color:var(--green);}
+.nicon{font-size:18px;line-height:1;}
+.nbtn.on .nicon{filter:drop-shadow(0 0 6px rgba(46,204,138,0.5));}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px);}
+.modal{background:var(--surface);border-radius:22px 22px 0 0;padding:20px 18px 30px;width:100%;max-width:480px;border-top:1px solid rgba(46,204,138,0.15);}
+.modal-handle{width:36px;height:4px;background:rgba(255,255,255,0.12);border-radius:2px;margin:0 auto 16px;}
+.modal-name{font-size:17px;font-weight:600;color:var(--text);margin-bottom:2px;}
+.modal-meta{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap;}
+.modal-price{font-size:22px;font-weight:600;font-family:var(--mono);color:var(--green);}
+.modal-code{font-size:12px;color:var(--text3);font-family:var(--mono);background:rgba(255,255,255,0.07);padding:2px 8px;border-radius:6px;}
+.modal-note-disp{font-size:12px;color:var(--text2);font-style:italic;margin-bottom:14px;min-height:14px;}
+.already-done{background:rgba(46,204,138,0.1);border:1px solid rgba(46,204,138,0.2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--green);}
+.modal-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:7px;}
+.opt-group{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap;}
+.opt{flex:1;padding:10px 8px;background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);color:var(--text2);font-size:13px;font-family:var(--font);cursor:pointer;text-align:center;min-width:80px;}
+.opt.on{background:rgba(46,204,138,0.15);border-color:var(--green);color:var(--green);font-weight:600;}
+.mnote{width:100%;padding:10px 12px;background:var(--card);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:13px;outline:none;resize:none;margin-bottom:14px;}
+.mnote:focus{border-color:rgba(46,204,138,0.3);}
+.mnote::placeholder{color:var(--text3);}
+
+/* SETTINGS */
+.settings-panel{background:var(--surface);border-radius:22px 22px 0 0;padding:20px 18px 34px;width:100%;max-width:480px;border-top:1px solid rgba(46,204,138,0.15);}
+.sett-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:16px;}
+.sett-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.sett-lbl{font-size:13px;color:var(--text2);min-width:80px;}
+.acc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+
+/* LOADING */
+#loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:14px;}
+.load-logo{font-size:42px;}
+.load-text{font-size:14px;color:var(--text2);font-family:var(--mono);}
+
+/* TOAST */
+#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(10px);background:#1a4a35;color:var(--green);padding:10px 20px;border-radius:20px;font-size:13px;z-index:300;opacity:0;transition:all 0.3s;pointer-events:none;white-space:nowrap;border:1px solid rgba(46,204,138,0.2);}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* EMPTY */
+.empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px;}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="load-logo">💊</div>
+  <div class="load-text">Cargando...</div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="hdr">
+    <div class="hdr-top">
+      <div>
+        <div class="hdr-title" id="hdr-title">Remedios</div>
+        <div class="hdr-sub" id="hdr-sub">Cargando datos...</div>
+      </div>
+      <button class="hdr-cfg" onclick="openSettings()">⚙</button>
+    </div>
+    <div class="hdr-stats" id="hdr-stats"></div>
+    <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+  </div>
+
+  <div class="content" id="content"></div>
+
+  <nav class="nav">
+    <button class="nbtn on" id="nb-lista" onclick="setTab('lista')"><span class="nicon">📋</span>Lista</button>
+    <button class="nbtn" id="nb-totales" onclick="setTab('totales')"><span class="nicon">💰</span>Totales</button>
+    <button class="nbtn" id="nb-cargar" onclick="setTab('cargar')"><span class="nicon">➕</span>Cargar</button>
+    <button class="nbtn" id="nb-historial" onclick="setTab('historial')"><span class="nicon">🗂</span>Historial</button>
+  </nav>
+</div>
+
+<div id="modal-bg" class="modal-bg" style="display:none" onclick="handleModalBgClick(event)"></div>
+<div id="toast">✓ Listo</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, set, update, push, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBtTGAJ1X3yrvj-Dx-fsNmfe_Zw09yfrZo",
+  authDomain: "medicamentos-8352a.firebaseapp.com",
+  databaseURL: "https://medicamentos-8352a-default-rtdb.firebaseio.com",
+  projectId: "medicamentos-8352a",
+  storageBucket: "medicamentos-8352a.firebasestorage.app",
+  messagingSenderId: "828746191058",
+  appId: "1:828746191058:web:00f74a7502f7ce2121dd0b"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ─── STATE ──────────────────────────────────────────────────────────────────
+let state = {
+  tab: 'lista',
+  filter: 'todos',
+  search: '',
+  patients: {},
+  settings: {
+    month: 'Junio 2025',
+    refTotal: 0,
+    accA: 'Bancaria Sur',
+    accB: 'Galicia Personal',
+    accC: 'Mercado Pago',
+  },
+  historial: {},
+};
+
+let modalPatient = null;
+let payMode = null;
+let transferDest = null;
+let modalAction = null;
+
+// ─── FIREBASE LISTENERS ──────────────────────────────────────────────────────
+onValue(ref(db, 'settings'), snap => {
+  if (snap.exists()) state.settings = { ...state.settings, ...snap.val() };
+  renderHeader();
+  renderContent();
+});
+
+onValue(ref(db, 'patients'), snap => {
+  state.patients = snap.exists() ? snap.val() : {};
+  renderHeader();
+  renderContent();
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+});
+
+onValue(ref(db, 'historial'), snap => {
+  state.historial = snap.exists() ? snap.val() : {};
+});
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+const peso = n => '$' + (n||0).toLocaleString('es-AR');
+const now = () => { const d=new Date(); return d.getDate().toString().padStart(2,'0')+'/'+(d.getMonth()+1).toString().padStart(2,'0')+' '+d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); };
+const patients = () => Object.entries(state.patients).map(([k,v])=>({...v,_key:k}));
+const filtered = () => {
+  const s = state.search.toLowerCase();
+  return patients().filter(p => {
+    const ms = !s || p.name?.toLowerCase().includes(s) || String(p.bag||'').includes(s) || (p.code||'').toLowerCase().includes(s);
+    const mf = state.filter==='todos'
+      || (state.filter==='pendientes' && p.status==='pending')
+      || (state.filter==='retirados' && p.status==='done')
+      || (state.filter==='esperando' && p.status==='pagado-esperando')
+      || (state.filter==='liberados' && (p.status==='liberado'||p.status==='stock-sold'));
+    return ms && mf;
+  }).sort((a,b)=>(a.bag||0)-(b.bag||0));
+};
+const accName = k => ({ a:state.settings.accA, b:state.settings.accB, c:state.settings.accC }[k] || k);
+const accColor = k => ({ a:'#5bc4f5', b:'#b388ff', c:'#ff8a65', cash:'#f5c842' }[k] || '#8ab89e');
+
+// ─── TOTALS CALC ─────────────────────────────────────────────────────────────
+const calcTotals = () => {
+  const all = patients();
+  // Cobrado = done + pagado-esperando + stock-sold
+  const cobrados = all.filter(p=>p.status==='done'||p.status==='pagado-esperando'||p.status==='stock-sold');
+  const totalCob = cobrados.reduce((s,p)=>s+(p.price||0),0);
+  // Esperado = planilla original (todos excepto liberados)
+  const noLibre = all.filter(p=>p.status!=='liberado');
+  const totalEsp = noLibre.reduce((s,p)=>s+(p.origPrice||p.price||0),0);
+  // Stock vendido
+  const stockSold = all.filter(p=>p.status==='stock-sold');
+  const totalStock = stockSold.reduce((s,p)=>s+(p.price||0),0);
+  const stockN = stockSold.length;
+  // Liberados sin vender
+  const liberados = all.filter(p=>p.status==='liberado');
+  const liberadosN = liberados.length;
+  // Pagados esperando entrega
+  const esperando = all.filter(p=>p.status==='pagado-esperando');
+  const esperandoN = esperando.length;
+  const esperandoAmt = esperando.reduce((s,p)=>s+(p.price||0),0);
+  // Por canal (todos los que pagaron)
+  const pagaron = all.filter(p=>['done','pagado-esperando','stock-sold'].includes(p.status));
+  const cash = pagaron.filter(p=>p.payType==='cash').reduce((s,p)=>s+(p.price||0),0);
+  const cashN = pagaron.filter(p=>p.payType==='cash').length;
+  const ta = pagaron.filter(p=>p.dest==='a').reduce((s,p)=>s+(p.price||0),0);
+  const taN = pagaron.filter(p=>p.dest==='a').length;
+  const tb = pagaron.filter(p=>p.dest==='b').reduce((s,p)=>s+(p.price||0),0);
+  const tbN = pagaron.filter(p=>p.dest==='b').length;
+  const tc = pagaron.filter(p=>p.dest==='c').reduce((s,p)=>s+(p.price||0),0);
+  const tcN = pagaron.filter(p=>p.dest==='c').length;
+  const pend = all.filter(p=>p.status==='pending').length;
+  const pendAmt = all.filter(p=>p.status==='pending').reduce((s,p)=>s+(p.price||0),0);
+  const ref = state.settings.refTotal || 0;
+  const diff = totalCob - ref;
+  // Comisión
+  const comPct = state.settings.comision || 0;
+  const comAmt = comPct ? Math.round(totalCob * comPct / 100) : 0;
+  const paraDoctor = totalCob - comAmt;
+  return {totalEsp,totalCob,cash,cashN,ta,taN,tb,tbN,tc,tcN,pend,pendAmt,ref,diff,
+          totalStock,stockN,liberadosN,esperandoN,esperandoAmt,comPct,comAmt,paraDoctor};
+};
+
+// ─── RENDER HEADER ──────────────────────────────────────────────────────────
+function renderHeader() {
+  const all = patients();
+  const done = all.filter(p=>p.status==='done').length;
+  const total = all.length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  const t = calcTotals();
+  document.getElementById('hdr-title').textContent = state.settings.month || 'Remedios';
+  document.getElementById('hdr-sub').textContent = `${total} pacientes · ${done} retirados · ${pct}%`;
+  document.getElementById('prog-fill').style.width = pct+'%';
+  const cuadreHtml = t.ref > 0
+    ? `<span class="cuadre-badge ${Math.abs(t.diff)<1?'cuadre-ok':'cuadre-off'}">${Math.abs(t.diff)<1?'✓ Cuadre OK':`Dif: ${peso(t.diff)}`}</span>`
+    : '';
+  document.getElementById('hdr-stats').innerHTML =
+    `<span class="hdr-stat"><strong>${peso(t.totalCob)}</strong> cobrado</span>
+     <span class="hdr-stat"><strong>${t.pend}</strong> pendientes</span>
+     ${cuadreHtml}`;
+}
+
+// ─── RENDER CONTENT ──────────────────────────────────────────────────────────
+function renderContent() {
+  const tabs = { lista:renderLista, totales:renderTotales, cargar:renderCargar, historial:renderHistorial };
+  (tabs[state.tab] || renderLista)();
+}
+
+// ─── LISTA ───────────────────────────────────────────────────────────────────
+function renderLista() {
+  const list = filtered();
+  const pending = list.filter(p=>p.status==='pending');
+  const done = list.filter(p=>p.status==='done');
+  const esperando = list.filter(p=>p.status==='pagado-esperando');
+  const liberados = list.filter(p=>p.status==='liberado');
+  const stockSold = list.filter(p=>p.status==='stock-sold');
+  let h = `
+    <div class="search-wrap">
+      <span class="search-ico">🔍</span>
+      <input id="search-in" type="search" placeholder="Nombre, N° bolsita o código..." value="${state.search}" oninput="doSearch(this.value)"/>
+    </div>
+    <div class="filters">
+      <button class="fbtn ${state.filter==='todos'?'on':''}" onclick="setFilter('todos')">Todos</button>
+      <button class="fbtn ${state.filter==='pendientes'?'on':''}" onclick="setFilter('pendientes')">Pendientes</button>
+      <button class="fbtn ${state.filter==='retirados'?'on':''}" onclick="setFilter('retirados')">Retirados</button>
+      <button class="fbtn ${state.filter==='esperando'?'on':''}" onclick="setFilter('esperando')" style="color:#5bc4f5">💙 Pagado/Esp.</button>
+      <button class="fbtn ${state.filter==='liberados'?'on':''}" onclick="setFilter('liberados')" style="color:#b388ff">🟣 Liberados</button>
+    </div>`;
+  if (!list.length) { h += `<div class="empty">Sin resultados</div>`; }
+  if (pending.length) { h += `<div class="sec">⏳ Pendientes · ${pending.length}</div>`; pending.forEach(p=>{ h+=pCard(p); }); }
+  if (esperando.length) { h += `<div class="sec" style="color:#5bc4f5">💙 Pagado · esperando entrega · ${esperando.length}</div>`; esperando.forEach(p=>{ h+=pCard(p); }); }
+  if (done.length) { h += `<div class="sec">✅ Retirados · ${done.length}</div>`; done.forEach(p=>{ h+=pCard(p); }); }
+  if (liberados.length) { h += `<div class="sec" style="color:#b388ff">🟣 Liberados en stock · ${liberados.length}</div>`; liberados.forEach(p=>{ h+=pCard(p); }); }
+  if (stockSold.length) { h += `<div class="sec" style="color:#ff8a65">🟠 Stock vendido · ${stockSold.length}</div>`; stockSold.forEach(p=>{ h+=pCard(p); }); }
+  document.getElementById('content').innerHTML = h;
+}
+
+function pCard(p) {
+  const st = p.status;
+  const isDone = st==='done';
+  const isEsp = st==='pagado-esperando';
+  const isLib = st==='liberado';
+  const isStockSold = st==='stock-sold';
+  let statusHtml = '';
+  if (isDone) {
+    statusHtml = p.payType==='cash'
+      ? `<span class="status-pill sp-cash">Efectivo</span>`
+      : `<span class="status-pill sp-transfer">${accName(p.dest)}</span>`;
+  } else if (isEsp) {
+    statusHtml = `<span class="status-pill sp-pagado-esp">💙 Pagado/Esp.</span>`;
+  } else if (isLib) {
+    statusHtml = `<span class="status-pill sp-liberado">🟣 Liberado</span>`;
+  } else if (isStockSold) {
+    statusHtml = p.payType==='cash'
+      ? `<span class="status-pill sp-stock-sold">🟠 Stock·Ef.</span>`
+      : `<span class="status-pill sp-stock-sold">🟠 Stock·${accName(p.dest)}</span>`;
+  } else {
+    statusHtml = `<span class="status-pill sp-pending">Pendiente</span>`;
+  }
+  const cssClass = isDone?'done':isEsp?'pagado-esperando':isLib?'liberado':isStockSold?'stock-sold':'pending';
+  const showPrice = isLib ? (p.stockPrice ? `<span class="pcard-price" style="color:var(--purple)">${peso(p.stockPrice)} <span style="font-size:10px;opacity:.6">stock</span></span>` : `<span class="pcard-price" style="color:var(--text3)">${peso(p.price)} <span style="font-size:10px">original</span></span>`)
+    : `<span class="pcard-price">${peso(p.price)}</span>`;
+  return `<div class="pcard ${cssClass}" onclick="openModal('${p._key}')">
+    <div class="bag-num" style="${isLib?'background:var(--purple);color:#fff':isEsp?'background:#1a4060;color:#5bc4f5':isStockSold?'background:#5a2a1a;color:#ff8a65':''}">#${p.bag}</div>
+    <div class="pcard-body">
+      <div class="pcard-name">${p.name||''}</div>
+      <div class="pcard-row">
+        ${showPrice}
+        ${p.code?`<span class="pcard-code">${p.code}</span>`:''}
+      </div>
+      ${p.note?`<div class="pcard-note">${p.note}</div>`:''}
+      ${(isDone||isStockSold)&&p.date?`<div class="pcard-date">Entregado: ${p.date}</div>`:''}
+      ${isEsp&&p.date?`<div class="pcard-date" style="color:#5bc4f5">Pagó: ${p.date}</div>`:''}
+    </div>
+    ${statusHtml}
+  </div>`;
+}
+
+// ─── TOTALES ─────────────────────────────────────────────────────────────────
+function renderTotales() {
+  const t = calcTotals();
+  const pct = t.totalEsp ? Math.round(t.totalCob/t.totalEsp*100) : 0;
+  const hasCuadre = t.ref > 0;
+  const cuadreOk = Math.abs(t.diff) < 1;
+  document.getElementById('content').innerHTML = `
+    <div class="total-hero">
+      <div class="total-lbl">Total cobrado</div>
+      <div class="total-big">${peso(t.totalCob)}</div>
+      <div class="total-exp">de ${peso(t.totalEsp)} esperado · ${pct}%</div>
+      ${hasCuadre?`
+      <div class="cuadre-row">
+        <span class="cuadre-lbl">Ref. planilla: ${peso(t.ref)}</span>
+        <span class="cuadre-val ${cuadreOk?'ok':'off'}">${cuadreOk?'✓ Cuadra':'Dif: '+peso(t.diff)}</span>
+      </div>`:''}
+    </div>
+
+    ${t.comPct>0?`
+    <div class="channels-card" style="border:1px solid rgba(46,204,138,0.2);">
+      <div class="ch-title">💰 Liquidación</div>
+      ${chRow('#2ecc8a','Total cobrado','',t.totalCob)}
+      ${chRow('#ff6b6b','Para el doctor','',(t.paraDoctor))}
+      ${chRow('#f5c842','Comisión ('+t.comPct+'%)','tu ganancia',t.comAmt)}
+    </div>`:''}
+
+    <div class="channels-card">
+      <div class="ch-title">Desglose por canal</div>
+      ${chRow('#f5c842','Efectivo',t.cashN+' pac.',t.cash)}
+      ${chRow('#5bc4f5',state.settings.accA||'Cuenta A',t.taN+' pac.',t.ta)}
+      ${chRow('#b388ff',state.settings.accB||'Cuenta B',t.tbN+' pac.',t.tb)}
+      ${chRow('#ff8a65',state.settings.accC||'Cuenta C',t.tcN+' pac.',t.tc)}
+    </div>
+
+    <div class="channels-card">
+      <div class="ch-title">📦 Resumen de stock liberado</div>
+      ${chRow('#b388ff','Liberados sin vender',t.liberadosN+' rem.', 0)}
+      ${chRow('#ff8a65','Stock vendido',t.stockN+' rem.',t.totalStock)}
+      ${t.esperandoN>0?chRow('#5bc4f5','Pagado / esperando entrega',t.esperandoN+' pac.',t.esperandoAmt):''}
+    </div>
+
+    <div class="pending-alert">
+      <p>${t.pend} pacientes aún no retiraron</p>
+      <strong>${peso(t.pendAmt)}</strong>
+      <p style="font-size:11px;color:#c44;margin-top:2px;">pendiente de cobro</p>
+    </div>`;
+}
+
+function chRow(color, name, sub, amt) {
+  return `<div class="ch-row"><div class="ch-dot" style="background:${color}"></div><div class="ch-info"><div class="ch-name">${name}</div><div class="ch-sub">${sub}</div></div><div class="ch-amt">${peso(amt)}</div></div>`;
+}
+
+// ─── CARGAR ───────────────────────────────────────────────────────────────────
+function renderCargar() {
+  document.getElementById('content').innerHTML = `
+    <div class="cargar-card">
+      <div class="cargar-title">📷 Opción 1 — Foto a la planilla</div>
+      <div class="ocr-zone" onclick="document.getElementById('ocr-file-in').click()">
+        <span class="ocr-ico">📄</span>
+        <div class="ocr-text">Tocá para subir foto(s) de la planilla</div>
+        <span class="ocr-tag">Múltiples fotos · el sistema las une</span>
+      </div>
+      <input type="file" id="ocr-file-in" accept="image/*" multiple style="display:none" onchange="ocrAddPhotos(this)"/>
+      <div class="photo-chips" id="photo-chips"></div>
+      <div id="ocr-progress" style="display:none;text-align:center;padding:10px;font-size:13px;color:var(--text2);">⏳ Procesando fotos...</div>
+      <button class="btn-add" id="ocr-btn-process" style="display:none;margin-top:8px;" onclick="ocrProcesar()">🔍 Leer planilla con OCR</button>
+    </div>
+    <!-- OCR PREVIEW MODAL -->
+    <div id="ocr-preview-wrap" style="display:none;">
+      <div class="cargar-card" style="border:1px solid rgba(46,204,138,0.3);">
+        <div class="cargar-title" style="color:var(--green);">✅ OCR completado — revisá antes de confirmar</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Corregí cualquier dato mal leído antes de guardar.</div>
+        <div id="ocr-rows-container"></div>
+        <button class="btn-primary" onclick="ocrConfirmar()" style="margin-top:10px;">💾 Guardar todos en la planilla</button>
+        <button class="btn-secondary" onclick="ocrCancelar()">Cancelar</button>
+      </div>
+    </div>
+    <div class="divider-or">— o bien —</div>
+    <div class="cargar-card">
+      <div class="cargar-title">✏️ Opción 2 — Carga manual</div>
+      <input class="finput" id="mn-name" placeholder="Apellido y nombre..." />
+      <div class="frow">
+        <input class="finput" id="mn-bag" type="number" placeholder="N° bolsita" style="margin:0"/>
+        <input class="finput" id="mn-price" type="number" placeholder="$ Precio" style="margin:0"/>
+        <input class="finput" id="mn-code" placeholder="Cód. med." style="margin:0"/>
+      </div>
+      <input class="finput" id="mn-note" placeholder="Nota opcional (alérgica, etc.)..."/>
+      <button class="btn-add" onclick="addManual()">+ Agregar paciente</button>
+    </div>
+    <div class="cargar-card">
+      <div class="cargar-title">📋 Total de referencia de la planilla</div>
+      <div class="ref-total-row">
+        <span class="ref-label">Total impreso:</span>
+        <input class="finput" id="ref-total-in" type="number" placeholder="Ej: 324000" value="${state.settings.refTotal||''}" style="margin:0;flex:1"/>
+      </div>
+      <button class="btn-add" onclick="saveRefTotal()">Guardar total de referencia</button>
+    </div>
+    <div style="margin-top:4px;">
+      <button class="btn-primary" onclick="archivarPlanilla()">📦 Archivar planilla y nueva tanda</button>
+      <button class="btn-secondary" onclick="exportarTexto()">📋 Exportar resumen (texto/WhatsApp)</button>
+      <button class="btn-secondary" onclick="exportarPDF()" style="margin-top:6px;">📄 Exportar resumen (PDF)</button>
+    </div>`;
+}
+
+// ─── HISTORIAL ────────────────────────────────────────────────────────────────
+function renderHistorial() {
+  const items = Object.entries(state.historial).reverse();
+  let h = `<p style="font-size:12px;color:var(--text3);margin-bottom:10px;">Planillas anteriores archivadas</p>`;
+  if (!items.length) { h += `<div class="empty">Sin historial aún</div>`; }
+  items.forEach(([k,v]) => {
+    const pct = v.totalEsp ? Math.round(v.totalCob/v.totalEsp*100) : 0;
+    h += `<div class="hist-item">
+      <div>
+        <div class="hist-month">${v.month}</div>
+        <div class="hist-sub">${v.count} pac. · ${v.done||0} retirados${v.stockSold?` · ${v.stockSold} stock`:''}</div>
+        ${v.liberados?`<div style="font-size:11px;color:#b388ff;margin-top:2px;">🟣 ${v.liberados} liberados sin vender</div>`:''}
+        ${v.comAmt?`<div style="font-size:11px;color:#f5c842;margin-top:2px;">Comisión: ${peso(v.comAmt)}</div>`:''}
+      </div>
+      <div class="hist-amt">
+        <div class="hist-total">${peso(v.totalCob)}</div>
+        <div class="hist-pct">${pct}% de ${peso(v.totalEsp)}</div>
+        ${v.totalStock?`<div style="font-size:11px;color:#ff8a65">+${peso(v.totalStock)} stock</div>`:''}
+      </div>
+    </div>`;
+  });
+  document.getElementById('content').innerHTML = h;
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+function openModal(key) {
+  const p = state.patients[key];
+  if (!p) return;
+  modalPatient = { ...p, _key: key };
+  payMode = p.payType || null;
+  transferDest = p.dest || null;
+  drawModal();
+  document.getElementById('modal-bg').style.display = 'flex';
+}
+
+function drawModal() {
+  const p = modalPatient;
+  const st = p.status;
+  const isDone = st==='done';
+  const isEsp = st==='pagado-esperando';
+  const isLib = st==='liberado';
+  const isStockSold = st==='stock-sold';
+  const mbg = document.getElementById('modal-bg');
+
+  let statusBanner = '';
+  if (isDone) statusBanner = `<div class="already-done">✓ Retirado el ${p.date} · ${p.payType==='cash'?'Efectivo':accName(p.dest)}</div>`;
+  if (isEsp) statusBanner = `<div class="already-done" style="background:rgba(20,50,80,0.6);border-color:rgba(91,196,245,0.3);color:#5bc4f5">💙 Pagado el ${p.date} · ${p.payType==='cash'?'Efectivo':accName(p.dest)} · Pendiente de entrega</div>`;
+  if (isLib) statusBanner = `<div class="already-done" style="background:rgba(40,20,70,0.6);border-color:rgba(179,136,255,0.3);color:#b388ff">🟣 Liberado en stock · Precio stock: ${peso(p.stockPrice||p.price)}</div>`;
+  if (isStockSold) statusBanner = `<div class="already-done" style="background:rgba(60,25,10,0.6);border-color:rgba(255,138,101,0.3);color:#ff8a65">🟠 Vendido como stock el ${p.date} · ${p.payType==='cash'?'Efectivo':accName(p.dest)}</div>`;
+
+  mbg.innerHTML = `<div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-meta">
+      <span class="bag-num" style="font-size:14px">#${p.bag}</span>
+      ${p.code?`<span class="modal-code">${p.code}</span>`:''}
+    </div>
+    <div class="modal-name" style="margin-top:6px;">${p.name||''}</div>
+    <div class="modal-price" style="margin:4px 0 2px;">${peso(p.price)}</div>
+    <div class="modal-note-disp">${p.note||''}</div>
+    ${statusBanner}
+
+    <div class="modal-lbl" style="margin-top:4px;">¿Qué acción realizás?</div>
+    <div class="opt-group" style="flex-wrap:wrap;">
+      <div class="opt ${modalAction==='retiro'?'on':''}" onclick="selAction('retiro')" style="min-width:120px;">✅ Retiro normal</div>
+      <div class="opt ${modalAction==='pagado-esp'?'on':''}" onclick="selAction('pagado-esp')" style="min-width:120px;color:#5bc4f5">💙 Pagó / no entregado</div>
+      <div class="opt ${modalAction==='liberar'?'on':''}" onclick="selAction('liberar')" style="min-width:120px;color:#b388ff">🟣 Liberar stock</div>
+      <div class="opt ${modalAction==='stock-venta'?'on':''}" onclick="selAction('stock-venta')" style="min-width:120px;color:#ff8a65">🟠 Vender como stock</div>
+      ${isEsp?`<div class="opt ${modalAction==='entregar'?'on':''}" onclick="selAction('entregar')" style="min-width:120px;color:#2ecc8a">📦 Confirmar entrega</div>`:''}
+    </div>
+
+    ${(modalAction==='retiro'||modalAction==='pagado-esp'||modalAction==='stock-venta'||modalAction==='entregar')?`
+    <div class="modal-lbl">Forma de pago</div>
+    <div class="opt-group">
+      <div class="opt ${payMode==='cash'?'on':''}" onclick="selPay('cash')">Efectivo</div>
+      <div class="opt ${payMode==='transfer'?'on':''}" onclick="selPay('transfer')">Transferencia</div>
+    </div>
+    ${payMode==='transfer'?`
+    <div class="modal-lbl">Destino</div>
+    <div class="opt-group">
+      <div class="opt ${transferDest==='a'?'on':''}" onclick="selDest('a')">${state.settings.accA||'Cta A'}</div>
+      <div class="opt ${transferDest==='b'?'on':''}" onclick="selDest('b')">${state.settings.accB||'Cta B'}</div>
+      <div class="opt ${transferDest==='c'?'on':''}" onclick="selDest('c')">${state.settings.accC||'Cta C'}</div>
+    </div>`:''}`:``}
+
+    ${modalAction==='liberar'?`
+    <div class="modal-lbl">Precio de stock (puede ser diferente)</div>
+    <input class="finput" id="modal-stock-price" type="number" placeholder="Nuevo precio..." value="${p.stockPrice||p.price||''}"/>
+    `:''}
+
+    ${modalAction==='stock-venta'?`
+    <div class="modal-lbl">Precio de venta stock</div>
+    <input class="finput" id="modal-stock-price" type="number" placeholder="Precio de venta..." value="${p.stockPrice||p.price||''}"/>
+    `:''}
+
+    <textarea class="mnote" id="modal-note-in" rows="2" placeholder="Nota opcional...">${p.note||''}</textarea>
+    ${modalAction?`<button class="btn-primary" onclick="confirmAccion()" style="margin-bottom:0;">Confirmar</button>`:''}
+    <button class="btn-secondary" onclick="closeModal()" style="margin-top:8px;">Cancelar</button>
+  </div>`;
+}
+
+window.selAction = a => { modalAction=a; if(a==='liberar'){payMode=null;transferDest=null;} drawModal(); };
+window.selPay = m => { payMode=m; if(m==='cash') transferDest=null; drawModal(); };
+window.selDest = d => { transferDest=d; drawModal(); };
+
+window.confirmAccion = async () => {
+  const noteEl = document.getElementById('modal-note-in');
+  const note = noteEl ? noteEl.value : (modalPatient.note||'');
+  const spEl = document.getElementById('modal-stock-price');
+  const stockPrice = spEl ? parseInt(spEl.value)||0 : 0;
+
+  if (modalAction === 'liberar') {
+    await update(ref(db,'patients/'+modalPatient._key), {
+      status:'liberado', stockPrice: stockPrice||modalPatient.price, note,
+      payType:null, dest:null, date: now()
+    });
+    toast('🟣 Remedio liberado en stock');
+    closeModal(); return;
+  }
+
+  if (modalAction === 'retiro' || modalAction === 'entregar') {
+    if (!payMode) { toast('Seleccioná forma de pago'); return; }
+    if (payMode==='transfer'&&!transferDest) { toast('Seleccioná destino'); return; }
+    await update(ref(db,'patients/'+modalPatient._key), {
+      status:'done', payType:payMode, dest:transferDest||null, date:now(), note
+    });
+    toast('✅ Retiro registrado');
+    closeModal(); return;
+  }
+
+  if (modalAction === 'pagado-esp') {
+    if (!payMode) { toast('Seleccioná forma de pago'); return; }
+    if (payMode==='transfer'&&!transferDest) { toast('Seleccioná destino'); return; }
+    await update(ref(db,'patients/'+modalPatient._key), {
+      status:'pagado-esperando', payType:payMode, dest:transferDest||null, date:now(), note
+    });
+    toast('💙 Pago registrado — pendiente de entrega');
+    closeModal(); return;
+  }
+
+  if (modalAction === 'stock-venta') {
+    if (!payMode) { toast('Seleccioná forma de pago'); return; }
+    if (payMode==='transfer'&&!transferDest) { toast('Seleccioná destino'); return; }
+    const precio = stockPrice || modalPatient.stockPrice || modalPatient.price;
+    await update(ref(db,'patients/'+modalPatient._key), {
+      status:'stock-sold', price: precio, payType:payMode, dest:transferDest||null, date:now(), note
+    });
+    toast('🟠 Stock vendido registrado');
+    closeModal(); return;
+  }
+
+  toast('Seleccioná una acción');
+};
+
+window.closeModal = () => {
+  document.getElementById('modal-bg').style.display = 'none';
+  modalPatient = null; payMode = null; transferDest = null; modalAction = null;
+};
+
+window.handleModalBgClick = e => { if(e.target===document.getElementById('modal-bg')) closeModal(); };
+
+// ─── ACTIONS ─────────────────────────────────────────────────────────────────
+window.addManual = async () => {
+  const name = document.getElementById('mn-name').value.trim();
+  const bag = parseInt(document.getElementById('mn-bag').value);
+  const price = parseInt(document.getElementById('mn-price').value);
+  const code = document.getElementById('mn-code').value.trim();
+  const note = document.getElementById('mn-note').value.trim();
+  if (!name||!bag||!price) { toast('Completá nombre, bolsita y precio'); return; }
+  await push(ref(db,'patients'), {name,bag,price,code,note,status:'pending',payType:null,dest:null,date:null});
+  toast('✓ Paciente agregado');
+  ['mn-name','mn-bag','mn-price','mn-code','mn-note'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+};
+
+window.saveRefTotal = async () => {
+  const v = parseInt(document.getElementById('ref-total-in').value);
+  if (!v) { toast('Ingresá un valor válido'); return; }
+  await update(ref(db,'settings'), { refTotal: v });
+  toast('✓ Total de referencia guardado');
+};
+
+window.archivarPlanilla = async () => {
+  const all = patients();
+  if (!all.length) { toast('No hay pacientes en la planilla'); return; }
+  const t = calcTotals();
+  const archive = {
+    month: state.settings.month,
+    count: all.length,
+    done: all.filter(p=>p.status==='done').length,
+    stockSold: all.filter(p=>p.status==='stock-sold').length,
+    liberados: all.filter(p=>p.status==='liberado').length,
+    totalCob: t.totalCob,
+    totalEsp: t.totalEsp,
+    totalStock: t.totalStock,
+    refTotal: t.ref,
+    comAmt: t.comAmt,
+    archivedAt: now(),
+  };
+  await push(ref(db,'historial'), archive);
+  await set(ref(db,'patients'), {});
+  await update(ref(db,'settings'), { refTotal: 0 });
+  toast('✓ Planilla archivada — lista para nueva tanda');
+};
+
+// ─── SETTINGS ────────────────────────────────────────────────────────────────
+window.openSettings = () => {
+  const s = state.settings;
+  const mbg = document.getElementById('modal-bg');
+  mbg.innerHTML = `<div class="settings-panel" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="sett-title">⚙ Ajustes</div>
+    <div class="modal-lbl">Mes actual</div>
+    <input class="finput" id="sett-month" value="${s.month||''}" placeholder="Ej: Junio 2025"/>
+    <div class="modal-lbl" style="margin-top:8px;">Nombres de cuentas</div>
+    <div class="sett-row"><div class="acc-dot" style="background:#5bc4f5"></div><span class="sett-lbl">Cuenta A</span><input class="finput" id="sett-a" value="${s.accA||''}" style="margin:0;flex:1"/></div>
+    <div class="sett-row"><div class="acc-dot" style="background:#b388ff"></div><span class="sett-lbl">Cuenta B</span><input class="finput" id="sett-b" value="${s.accB||''}" style="margin:0;flex:1"/></div>
+    <div class="sett-row"><div class="acc-dot" style="background:#ff8a65"></div><span class="sett-lbl">Cuenta C</span><input class="finput" id="sett-c" value="${s.accC||''}" style="margin:0;flex:1"/></div>
+    <div class="modal-lbl" style="margin-top:8px;">Comisión de tu hermana (%)</div>
+    <input class="finput" id="sett-com" type="number" value="${s.comision||''}" placeholder="Ej: 10 (para 10%)"/>
+    <button class="btn-primary" style="margin-top:14px;" onclick="saveSettings()">Guardar ajustes</button>
+    <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
+  </div>`;
+  mbg.style.display = 'flex';
+};
+
+window.saveSettings = async () => {
+  const upd = {
+    month: document.getElementById('sett-month').value.trim(),
+    accA: document.getElementById('sett-a').value.trim(),
+    accB: document.getElementById('sett-b').value.trim(),
+    accC: document.getElementById('sett-c').value.trim(),
+    comision: parseFloat(document.getElementById('sett-com').value)||0,
+  };
+  await update(ref(db,'settings'), upd);
+  toast('✓ Ajustes guardados');
+  closeModal();
+};
+
+// ─── NAV & FILTERS ───────────────────────────────────────────────────────────
+window.setTab = t => {
+  state.tab = t;
+  ['lista','totales','cargar','historial'].forEach(x => {
+    document.getElementById('nb-'+x).className = 'nbtn'+(x===t?' on':'');
+  });
+  renderContent();
+};
+
+window.setFilter = f => { state.filter=f; renderContent(); };
+window.doSearch = v => { state.search=v; renderContent(); };
+window.openModal = openModal;
+
+// ─── OCR ─────────────────────────────────────────────────────────────────────
+const VISION_KEY = 'AIzaSyBtTGAJ1X3yrvj-Dx-fsNmfe_Zw09yfrZo';
+let ocrPhotos = []; // { file, dataUrl }
+let ocrResultados = []; // parsed rows
+
+window.ocrAddPhotos = async (input) => {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  for (const f of files) {
+    const dataUrl = await fileToDataUrl(f);
+    ocrPhotos.push({ file: f, dataUrl });
+  }
+  renderPhotoChips();
+  document.getElementById('ocr-btn-process').style.display = 'block';
+  input.value = '';
+};
+
+function fileToDataUrl(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.onerror = () => rej(new Error('Error leyendo archivo'));
+    r.readAsDataURL(file);
+  });
+}
+
+function renderPhotoChips() {
+  const wrap = document.getElementById('photo-chips');
+  if (!wrap) return;
+  wrap.innerHTML = ocrPhotos.map((p, i) =>
+    `<div class="chip">📷 Foto ${i+1} <span onclick="ocrRemovePhoto(${i})" style="cursor:pointer;margin-left:4px;opacity:0.6">✕</span></div>`
+  ).join('');
+}
+
+window.ocrRemovePhoto = (i) => {
+  ocrPhotos.splice(i, 1);
+  renderPhotoChips();
+  if (!ocrPhotos.length) document.getElementById('ocr-btn-process').style.display = 'none';
+};
+
+window.ocrProcesar = async () => {
+  if (!ocrPhotos.length) { toast('Agregá al menos una foto'); return; }
+  document.getElementById('ocr-progress').style.display = 'block';
+  document.getElementById('ocr-btn-process').style.display = 'none';
+
+  let allText = '';
+  for (const p of ocrPhotos) {
+    try {
+      const base64 = p.dataUrl.split(',')[1];
+      const body = {
+        requests: [{
+          image: { content: base64 },
+          features: [{ type: 'DOCUMENT_TEXT_DETECTION', maxResults: 1 }]
+        }]
+      };
+      const resp = await fetch(
+        `https://vision.googleapis.com/v1/images:annotate?key=${VISION_KEY}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      );
+      const data = await resp.json();
+      const text = data.responses?.[0]?.fullTextAnnotation?.text || '';
+      allText += text + '\n';
+    } catch(e) {
+      toast('Error procesando una foto — verificá conexión');
+      document.getElementById('ocr-progress').style.display = 'none';
+      document.getElementById('ocr-btn-process').style.display = 'block';
+      return;
+    }
+  }
+
+  document.getElementById('ocr-progress').style.display = 'none';
+  ocrResultados = parseOCRText(allText);
+
+  if (!ocrResultados.length) {
+    toast('No se pudieron leer datos — intentá con mejor foto');
+    document.getElementById('ocr-btn-process').style.display = 'block';
+    return;
+  }
+
+  renderOCRPreview();
+};
+
+function parseOCRText(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const results = [];
+  const seenBags = new Set();
+
+  // ─── Detectar total de referencia (número grande, ej: 1778000) ───
+  // Buscamos el número más grande que aparezca en el texto (>= 6 dígitos)
+  let detectedTotal = 0;
+  const bigNums = [...text.matchAll(/\b(\d{6,10})\b/g)].map(m=>parseInt(m[1]));
+  if (bigNums.length) detectedTotal = Math.max(...bigNums);
+
+  for (const line of lines) {
+    const m = line.match(/^(\d{1,3})\s+(.+)/);
+    if (!m) continue;
+    const bag = parseInt(m[1]);
+    if (bag < 1 || bag > 200) continue;
+    if (seenBags.has(bag)) continue;
+
+    const rest = m[2];
+
+    // Extraer precio — número grande al final (ej: 44000, 46000)
+    const priceMatch = rest.match(/(\d{4,7})\s*$/);
+    const price = priceMatch ? parseInt(priceMatch[1]) : 0;
+
+    // Extraer código de medicamento (ej: CO80, CO120, AM1-CO80)
+    const codeMatch = rest.match(/([A-Z]{1,4}\d{1,3}(?:-[A-Z]{1,4}\d{1,3})?)/);
+    const code = codeMatch ? codeMatch[1] : '';
+
+    // El nombre es lo que queda antes del código/precio
+    let name = rest;
+    if (code) name = name.replace(code, '');
+    if (priceMatch) name = name.replace(priceMatch[0], '');
+    name = name.replace(/\s{2,}/g, ' ').trim();
+    name = name.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g, '').trim();
+
+    if (name.length < 3) continue;
+
+    seenBags.add(bag);
+    results.push({ bag, name, price, code, note: '' });
+  }
+
+  // Guardar el total detectado para mostrarlo en la preview
+  parseOCRText._lastTotal = detectedTotal;
+
+  return results.sort((a, b) => a.bag - b.bag);
+}
+
+function renderOCRPreview() {
+  const wrap = document.getElementById('ocr-preview-wrap');
+  const container = document.getElementById('ocr-rows-container');
+  if (!wrap || !container) return;
+
+  const detectedTotal = parseOCRText._lastTotal || 0;
+
+  // Campo de total de referencia arriba de todo
+  const totalHtml = `
+    <div style="background:var(--amber-bg);border:1px solid rgba(245,200,66,0.25);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--amber);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">
+        📋 Total de referencia de la planilla
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input class="finput" id="ocr-ref-total" type="number" style="margin:0;flex:1;"
+          value="${detectedTotal||''}"
+          placeholder="Ingresá el total impreso en la planilla..."/>
+        ${detectedTotal?`<span style="font-size:11px;color:var(--amber);white-space:nowrap;">🔍 detectado</span>`:`<span style="font-size:11px;color:var(--text3);white-space:nowrap;">no detectado</span>`}
+      </div>
+      ${detectedTotal?`<div style="font-size:11px;color:var(--text2);margin-top:4px;">Verificá que sea correcto antes de confirmar.</div>`:'<div style="font-size:11px;color:var(--text3);margin-top:4px;">El OCR no lo encontró — escribilo manualmente.</div>'}
+    </div>`;
+
+  container.innerHTML = totalHtml + ocrResultados.map((r, i) => `
+    <div style="background:var(--card2);border-radius:var(--radius-sm);padding:10px;margin-bottom:7px;">
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <input class="finput" style="margin:0;width:58px;flex-shrink:0;" type="number" value="${r.bag}" placeholder="#" oninput="ocrUpdate(${i},'bag',this.value)"/>
+        <input class="finput" style="margin:0;flex:1;" value="${r.name}" placeholder="Nombre" oninput="ocrUpdate(${i},'name',this.value)"/>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <input class="finput" style="margin:0;flex:1;" type="number" value="${r.price||''}" placeholder="$ Precio" oninput="ocrUpdate(${i},'price',this.value)"/>
+        <input class="finput" style="margin:0;width:90px;" value="${r.code||''}" placeholder="Cód." oninput="ocrUpdate(${i},'code',this.value)"/>
+        <button onclick="ocrDeleteRow(${i})" style="background:var(--red-bg);border:none;border-radius:var(--radius-sm);color:var(--red);padding:0 10px;cursor:pointer;font-size:16px;">✕</button>
+      </div>
+    </div>`
+  ).join('');
+
+  container.innerHTML += `<button class="btn-add" onclick="ocrAgregarFila()" style="margin-top:4px;">+ Agregar fila manualmente</button>`;
+
+  wrap.style.display = 'block';
+  wrap.scrollIntoView({ behavior: 'smooth' });
+}
+
+window.ocrUpdate = (i, field, val) => {
+  if (!ocrResultados[i]) return;
+  ocrResultados[i][field] = field === 'bag' || field === 'price' ? parseInt(val)||0 : val;
+};
+
+window.ocrDeleteRow = (i) => {
+  ocrResultados.splice(i, 1);
+  renderOCRPreview();
+};
+
+window.ocrAgregarFila = () => {
+  ocrResultados.push({ bag: 0, name: '', price: 0, code: '', note: '' });
+  renderOCRPreview();
+};
+
+window.ocrConfirmar = async () => {
+  const validos = ocrResultados.filter(r => r.name && r.bag > 0);
+  if (!validos.length) { toast('No hay filas válidas para guardar'); return; }
+
+  // Guardar total de referencia si fue ingresado
+  const refEl = document.getElementById('ocr-ref-total');
+  const refVal = refEl ? parseInt(refEl.value)||0 : 0;
+  if (refVal > 0) {
+    await update(ref(db,'settings'), { refTotal: refVal });
+  }
+
+  let count = 0;
+  for (const r of validos) {
+    await push(ref(db, 'patients'), {
+      name: r.name, bag: r.bag, price: r.price||0,
+      code: r.code||'', note: r.note||'',
+      status: 'pending', payType: null, dest: null, date: null
+    });
+    count++;
+  }
+  toast(`✓ ${count} pacientes cargados${refVal?' + total de referencia guardado':''}`);
+  ocrCancelar();
+};
+
+window.ocrCancelar = () => {
+  ocrPhotos = [];
+  ocrResultados = [];
+  renderPhotoChips();
+  const wrap = document.getElementById('ocr-preview-wrap');
+  if (wrap) wrap.style.display = 'none';
+  const btn = document.getElementById('ocr-btn-process');
+  if (btn) btn.style.display = 'none';
+};
+
+
+window.exportarTexto = () => {
+  const t = calcTotals();
+  const all = patients().sort((a,b)=>(a.bag||0)-(b.bag||0));
+  const mes = state.settings.month || 'Sin mes';
+  const sep = '─────────────────────';
+
+  let txt = `💊 REMEDIOS — ${mes}\n${sep}\n`;
+  txt += `📦 Total pacientes: ${all.length}\n`;
+  txt += `✅ Retirados: ${all.filter(p=>p.status==='done').length}\n`;
+  txt += `⏳ Pendientes: ${t.pend}\n`;
+  txt += `${sep}\n`;
+  txt += `💰 TOTALES\n`;
+  txt += `  Cobrado:   ${peso(t.totalCob)}\n`;
+  txt += `  Esperado:  ${peso(t.totalEsp)}\n`;
+  if (t.ref > 0) txt += `  Referencia: ${peso(t.ref)} ${Math.abs(t.diff)<1?'✓ Cuadra':'⚠ Dif: '+peso(t.diff)}\n`;
+  txt += `${sep}\n`;
+  txt += `💵 POR CANAL\n`;
+  txt += `  Efectivo:         ${peso(t.cash)} (${t.cashN} pac.)\n`;
+  txt += `  ${state.settings.accA||'Cuenta A'}: ${peso(t.ta)} (${t.taN} pac.)\n`;
+  txt += `  ${state.settings.accB||'Cuenta B'}: ${peso(t.tb)} (${t.tbN} pac.)\n`;
+  txt += `  ${state.settings.accC||'Cuenta C'}: ${peso(t.tc)} (${t.tcN} pac.)\n`;
+  txt += `${sep}\n`;
+  txt += `📋 LISTA COMPLETA\n\n`;
+
+  const pending = all.filter(p=>p.status==='pending');
+  const done = all.filter(p=>p.status==='done');
+
+  if (pending.length) {
+    txt += `⏳ PENDIENTES (${pending.length})\n`;
+    pending.forEach(p => {
+      txt += `  #${String(p.bag).padStart(3,'0')} ${p.name||'?'} — ${peso(p.price)}`;
+      if (p.code) txt += ` [${p.code}]`;
+      if (p.note) txt += ` · ${p.note}`;
+      txt += `\n`;
+    });
+    txt += `\n`;
+  }
+
+  if (done.length) {
+    txt += `✅ RETIRADOS (${done.length})\n`;
+    done.forEach(p => {
+      const canal = p.payType==='cash' ? 'Efectivo' : accName(p.dest);
+      txt += `  #${String(p.bag).padStart(3,'0')} ${p.name||'?'} — ${peso(p.price)} · ${canal}`;
+      if (p.date) txt += ` · ${p.date}`;
+      if (p.note) txt += ` · ${p.note}`;
+      txt += `\n`;
+    });
+  }
+
+  // Intentar copiar al portapapeles, si no abrir en ventana
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(() => {
+      toast('✓ Texto copiado al portapapeles');
+    }).catch(() => abrirTextoEnVentana(txt));
+  } else {
+    abrirTextoEnVentana(txt);
+  }
+};
+
+window.abrirTextoEnVentana = (txt) => {
+  const win = window.open('', '_blank');
+  win.document.write(`<html><head><meta charset="UTF-8"><title>Resumen</title>
+  <style>body{font-family:monospace;white-space:pre;padding:20px;background:#111;color:#eee;font-size:14px;}</style>
+  </head><body>${txt.replace(/</g,'&lt;')}</body></html>`);
+  win.document.close();
+};
+
+// ─── EXPORTAR PDF ─────────────────────────────────────────────────────────────
+window.exportarPDF = () => {
+  const t = calcTotals();
+  const all = patients().sort((a,b)=>(a.bag||0)-(b.bag||0));
+  const mes = state.settings.month || 'Sin mes';
+  const pending = all.filter(p=>p.status==='pending');
+  const done = all.filter(p=>p.status==='done');
+
+  const rowsPending = pending.map(p => `
+    <tr>
+      <td style="color:#1aab6d;font-weight:700">#${p.bag}</td>
+      <td>${p.name||''}</td>
+      <td>${p.code||''}</td>
+      <td style="color:#e8f5ee">${peso(p.price)}</td>
+      <td><span style="background:#2d2d2d;color:#aaa;padding:2px 8px;border-radius:10px;font-size:11px">Pendiente</span></td>
+      <td style="font-size:11px;color:#888">${p.note||''}</td>
+    </tr>`).join('');
+
+  const rowsDone = done.map(p => {
+    const canal = p.payType==='cash' ? 'Efectivo' : accName(p.dest);
+    const color = p.payType==='cash' ? '#f5c842' : '#5bc4f5';
+    return `
+    <tr style="opacity:0.75">
+      <td style="color:#1aab6d;font-weight:700">#${p.bag}</td>
+      <td style="text-decoration:line-through;color:#888">${p.name||''}</td>
+      <td>${p.code||''}</td>
+      <td style="color:#2ecc8a">${peso(p.price)}</td>
+      <td><span style="background:#1a3d2e;color:${color};padding:2px 8px;border-radius:10px;font-size:11px">${canal}</span></td>
+      <td style="font-size:11px;color:#666">${p.date||''} ${p.note?'· '+p.note:''}</td>
+    </tr>`;}).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Resumen ${mes}</title>
+  <style>
+    body{font-family:'Segoe UI',sans-serif;background:#0b2d22;color:#e8f5ee;margin:0;padding:24px;}
+    h1{font-size:22px;color:#2ecc8a;margin-bottom:4px;}
+    .sub{font-size:13px;color:#8ab89e;margin-bottom:20px;}
+    .cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
+    .card{background:#1a3d2e;border-radius:10px;padding:14px 18px;min-width:140px;}
+    .card-lbl{font-size:10px;color:#4a7a5e;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+    .card-val{font-size:20px;font-weight:700;color:#e8f5ee;font-family:monospace;}
+    .card-val.green{color:#2ecc8a;} .card-val.red{color:#ff6b6b;}
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th{text-align:left;padding:8px 10px;font-size:10px;color:#4a7a5e;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #1a3d2e;}
+    td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);}
+    .sec-title{font-size:11px;font-weight:700;color:#4a7a5e;text-transform:uppercase;letter-spacing:.08em;margin:18px 0 8px;padding-left:2px;}
+    @media print{body{background:#fff;color:#111;} .card{background:#f5f5f5;} th,td{color:#111;} h1{color:#1a7a4a;}}
+  </style></head><body>
+  <h1>💊 ${mes}</h1>
+  <div class="sub">Generado el ${new Date().toLocaleDateString('es-AR')} · ${all.length} pacientes</div>
+  <div class="cards">
+    <div class="card"><div class="card-lbl">Cobrado</div><div class="card-val green">${peso(t.totalCob)}</div></div>
+    <div class="card"><div class="card-lbl">Esperado</div><div class="card-val">${peso(t.totalEsp)}</div></div>
+    <div class="card"><div class="card-lbl">Pendiente</div><div class="card-val red">${peso(t.pendAmt)}</div></div>
+    <div class="card"><div class="card-lbl">Efectivo</div><div class="card-val">${peso(t.cash)}</div></div>
+    <div class="card"><div class="card-lbl">${state.settings.accA||'Cta A'}</div><div class="card-val">${peso(t.ta)}</div></div>
+    <div class="card"><div class="card-lbl">${state.settings.accB||'Cta B'}</div><div class="card-val">${peso(t.tb)}</div></div>
+    <div class="card"><div class="card-lbl">${state.settings.accC||'Cta C'}</div><div class="card-val">${peso(t.tc)}</div></div>
+  </div>
+  ${pending.length?`<div class="sec-title">⏳ Pendientes · ${pending.length}</div>
+  <table><thead><tr><th>#</th><th>Paciente</th><th>Código</th><th>Precio</th><th>Estado</th><th>Nota</th></tr></thead>
+  <tbody>${rowsPending}</tbody></table>`:''}
+  ${done.length?`<div class="sec-title">✅ Retirados · ${done.length}</div>
+  <table><thead><tr><th>#</th><th>Paciente</th><th>Código</th><th>Precio</th><th>Canal</th><th>Fecha / Nota</th></tr></thead>
+  <tbody>${rowsDone}</tbody></table>`:''}
+  <script>window.onload=()=>window.print()<\/script>
+  </body></html>`;
+
+  const blob = new Blob([html], {type:'text/html'});
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank');
+  if (!win) toast('Habilitá popups para exportar el PDF');
+};
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+window.toast = msg => {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+};
+</script>
+</body>
+</html>
