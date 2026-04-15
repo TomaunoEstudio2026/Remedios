@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#ffffff"/>
 <title>Remedios</title>
@@ -21,7 +21,7 @@
   --radius:16px;--radius-sm:10px;--font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden;}
-#app{display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:480px;margin:0 auto;position:relative;}
+#app{display:flex;flex-direction:column;height:100vh;max-width:480px;margin:0 auto;position:relative;}
 
 /* HEADER */
 .hdr{background:var(--green);padding:16px 18px 14px;flex-shrink:0;}
@@ -150,7 +150,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .hist-pct{font-size:12px;color:var(--text3);}
 
 /* NAV */
-.nav{display:flex;background:#fff;border-top:1.5px solid var(--border);flex-shrink:0;padding-bottom:max(env(safe-area-inset-bottom), 4px);position:relative;z-index:10;}
+.nav{display:flex;background:#fff;border-top:1.5px solid var(--border);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom);position:relative;z-index:10;}
 .nbtn{flex:1;padding:11px 4px 9px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;border:none;background:none;color:var(--text3);font-size:10px;font-family:var(--font);letter-spacing:0.03em;text-transform:uppercase;transition:color 0.2s;font-weight:500;}
 .nbtn.on{color:var(--green);}
 .nicon{font-size:20px;line-height:1;}
@@ -186,7 +186,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .load-text{font-size:15px;color:var(--text2);font-family:var(--mono);}
 
 /* TOAST */
-#toast{position:fixed;bottom:calc(68px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:#fff;padding:12px 22px;border-radius:22px;font-size:14px;z-index:300;opacity:0;transition:all 0.3s;pointer-events:none;white-space:nowrap;}
+#toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--text);color:#fff;padding:12px 22px;border-radius:22px;font-size:14px;z-index:300;opacity:0;transition:all 0.3s;pointer-events:none;white-space:nowrap;}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
 /* EMPTY */
@@ -912,44 +912,84 @@ window.ocrRemovePhoto = (i) => {
 
 window.ocrProcesar = async () => {
   if (!ocrPhotos.length) { toast('Agregá al menos una foto'); return; }
-  document.getElementById('ocr-progress').style.display = 'block';
+  const prog = document.getElementById('ocr-progress');
+  prog.style.display = 'block';
+  prog.innerHTML = '⏳ Leyendo planilla con IA... puede tardar unos segundos';
   document.getElementById('ocr-btn-process').style.display = 'none';
 
-  let allText = '';
-  for (const p of ocrPhotos) {
-    try {
-      const base64 = p.dataUrl.split(',')[1];
-      const body = {
-        requests: [{
-          image: { content: base64 },
-          features: [{ type: 'DOCUMENT_TEXT_DETECTION', maxResults: 1 }]
-        }]
-      };
-      const resp = await fetch(
-        `https://vision.googleapis.com/v1/images:annotate?key=${VISION_KEY}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-      );
-      const data = await resp.json();
-      const text = data.responses?.[0]?.fullTextAnnotation?.text || '';
-      allText += text + '\n';
-    } catch(e) {
-      toast('Error procesando una foto — verificá conexión');
-      document.getElementById('ocr-progress').style.display = 'none';
+  const imageBlocks = ocrPhotos.map(p => ({
+    type: 'image',
+    source: {
+      type: 'base64',
+      media_type: p.file.type || 'image/jpeg',
+      data: p.dataUrl.split(',')[1]
+    }
+  }));
+
+  const prompt = `Sos un asistente que lee planillas de remedios/medicamentos argentinas.
+Analizá la/s imagen/es y extraé TODOS los pacientes de la tabla. Cada fila tiene: número de orden, apellido y nombre, código de medicamento (ej: CO80, CO120, AM1-CO80) y precio (ej: 44000, 46000).
+También buscá el total general de la planilla si aparece (número grande, ej: 1778000).
+
+Respondé SOLO con un JSON válido, sin explicaciones ni markdown, con este formato exacto:
+{"total": 1778000, "pacientes": [{"bag": 1, "name": "Ledesma Sebastiana", "code": "CO80", "price": 44000}]}
+
+IMPORTANTE:
+- Incluí TODOS los pacientes que veas, no te saltes ninguno
+- Si el precio no se ve claramente, poné 0
+- Si el código no se lee bien, dejalo vacío
+- El nombre debe ser Apellido + Nombre tal como aparece en la planilla
+- bag es el número de orden de la fila
+- No incluyas anotaciones manuscritas como PAGO CBU, PAGO EFECTIVO en el nombre`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: prompt }] }]
+      })
+    });
+
+    const data = await resp.json();
+    const rawText = data.content?.[0]?.text || '';
+    const cleaned = rawText.replace(/```json|```/g, '').trim();
+    let parsed;
+    try { parsed = JSON.parse(cleaned); }
+    catch(e) { const m = cleaned.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
+
+    prog.style.display = 'none';
+
+    if (!parsed || !Array.isArray(parsed.pacientes) || !parsed.pacientes.length) {
+      toast('No se encontraron datos — asegurate que la foto muestre la tabla completa');
       document.getElementById('ocr-btn-process').style.display = 'block';
       return;
     }
-  }
 
-  document.getElementById('ocr-progress').style.display = 'none';
-  ocrResultados = parseOCRText(allText);
+    ocrResultados = parsed.pacientes.map(r => ({
+      bag: parseInt(r.bag) || 0,
+      name: (r.name || '').trim(),
+      price: parseInt(r.price) || 0,
+      code: (r.code || '').trim(),
+      note: ''
+    })).filter(r => r.name.length >= 2);
 
-  if (!ocrResultados.length) {
-    toast('No se pudieron leer datos — intentá con mejor foto');
+    parseOCRText._lastTotal = parsed.total || 0;
+
+    if (!ocrResultados.length) {
+      toast('No se pudieron extraer pacientes — intentá con otra foto');
+      document.getElementById('ocr-btn-process').style.display = 'block';
+      return;
+    }
+
+    renderOCRPreview();
+
+  } catch(e) {
+    prog.style.display = 'none';
+    toast('Error de conexión — verificá internet');
     document.getElementById('ocr-btn-process').style.display = 'block';
-    return;
   }
-
-  renderOCRPreview();
 };
 
 function parseOCRText(text) {
