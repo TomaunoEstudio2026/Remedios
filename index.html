@@ -150,7 +150,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .hist-pct{font-size:12px;color:var(--text3);}
 
 /* NAV */
-.nav{display:flex;background:#fff;border-top:1.5px solid var(--border);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom);}
+.nav{display:flex;background:#fff;border-top:1.5px solid var(--border);flex-shrink:0;padding-bottom:env(safe-area-inset-bottom);position:relative;z-index:10;}
 .nbtn{flex:1;padding:11px 4px 9px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;border:none;background:none;color:var(--text3);font-size:10px;font-family:var(--font);letter-spacing:0.03em;text-transform:uppercase;transition:color 0.2s;font-weight:500;}
 .nbtn.on{color:var(--green);}
 .nicon{font-size:20px;line-height:1;}
@@ -248,6 +248,7 @@ let state = {
   tab: 'lista',
   filter: 'todos',
   search: '',
+  sortAlpha: false,
   patients: {},
   settings: {
     month: 'Junio 2025',
@@ -289,7 +290,7 @@ const now = () => { const d=new Date(); return d.getDate().toString().padStart(2
 const patients = () => Object.entries(state.patients).map(([k,v])=>({...v,_key:k}));
 const filtered = () => {
   const s = state.search.toLowerCase();
-  return patients().filter(p => {
+  const results = patients().filter(p => {
     const ms = !s || p.name?.toLowerCase().includes(s) || String(p.bag||'').includes(s) || (p.code||'').toLowerCase().includes(s);
     const mf = state.filter==='todos'
       || (state.filter==='pendientes' && p.status==='pending')
@@ -297,8 +298,14 @@ const filtered = () => {
       || (state.filter==='esperando' && p.status==='pagado-esperando')
       || (state.filter==='liberados' && (p.status==='liberado'||p.status==='stock-sold'));
     return ms && mf;
-  }).sort((a,b)=>(a.bag||0)-(b.bag||0));
+  });
+  if (state.sortAlpha) {
+    return results.sort((a,b)=>(a.name||'').localeCompare(b.name||'','es'));
+  }
+  return results.sort((a,b)=>(a.bag||0)-(b.bag||0));
 };
+
+window.toggleSort = () => { state.sortAlpha = !state.sortAlpha; renderLista(); };
 const accName = k => ({ a:state.settings.accA, b:state.settings.accB, c:state.settings.accC }[k] || k);
 const accColor = k => ({ a:'#5bc4f5', b:'#b388ff', c:'#ff8a65', cash:'#f5c842' }[k] || '#8ab89e');
 
@@ -379,25 +386,43 @@ function renderLista() {
   const esperando = list.filter(p=>p.status==='pagado-esperando');
   const liberados = list.filter(p=>p.status==='liberado');
   const stockSold = list.filter(p=>p.status==='stock-sold');
-  let h = `
+
+  let resultHtml = '';
+  if (!list.length) resultHtml = `<div class="empty">Sin resultados</div>`;
+  if (pending.length) { resultHtml += `<div class="sec">⏳ Pendientes · ${pending.length}</div>`; pending.forEach(p=>{ resultHtml+=pCard(p); }); }
+  if (esperando.length) { resultHtml += `<div class="sec" style="color:var(--blue)">💙 Pagado · esperando entrega · ${esperando.length}</div>`; esperando.forEach(p=>{ resultHtml+=pCard(p); }); }
+  if (done.length) { resultHtml += `<div class="sec">✅ Retirados · ${done.length}</div>`; done.forEach(p=>{ resultHtml+=pCard(p); }); }
+  if (liberados.length) { resultHtml += `<div class="sec" style="color:var(--purple)">🟣 Liberados en stock · ${liberados.length}</div>`; liberados.forEach(p=>{ resultHtml+=pCard(p); }); }
+  if (stockSold.length) { resultHtml += `<div class="sec" style="color:var(--coral)">🟠 Stock vendido · ${stockSold.length}</div>`; stockSold.forEach(p=>{ resultHtml+=pCard(p); }); }
+
+  document.getElementById('content').innerHTML = `
     <div class="search-wrap">
       <span class="search-ico">🔍</span>
-      <input id="search-in" type="search" placeholder="Nombre, N° bolsita o código..." value="${state.search}" oninput="doSearch(this.value)"/>
+      <input id="search-in" type="search" placeholder="Nombre, N° bolsita o código..."
+        value="${state.search}"
+        oninput="doSearch(this.value)"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
     </div>
-    <div class="filters">
-      <button class="fbtn ${state.filter==='todos'?'on':''}" onclick="setFilter('todos')">Todos</button>
-      <button class="fbtn ${state.filter==='pendientes'?'on':''}" onclick="setFilter('pendientes')">Pendientes</button>
-      <button class="fbtn ${state.filter==='retirados'?'on':''}" onclick="setFilter('retirados')">Retirados</button>
-      <button class="fbtn ${state.filter==='esperando'?'on':''}" onclick="setFilter('esperando')" style="color:#5bc4f5">💙 Pagado/Esp.</button>
-      <button class="fbtn ${state.filter==='liberados'?'on':''}" onclick="setFilter('liberados')" style="color:#b388ff">🟣 Liberados</button>
-    </div>`;
-  if (!list.length) { h += `<div class="empty">Sin resultados</div>`; }
-  if (pending.length) { h += `<div class="sec">⏳ Pendientes · ${pending.length}</div>`; pending.forEach(p=>{ h+=pCard(p); }); }
-  if (esperando.length) { h += `<div class="sec" style="color:#5bc4f5">💙 Pagado · esperando entrega · ${esperando.length}</div>`; esperando.forEach(p=>{ h+=pCard(p); }); }
-  if (done.length) { h += `<div class="sec">✅ Retirados · ${done.length}</div>`; done.forEach(p=>{ h+=pCard(p); }); }
-  if (liberados.length) { h += `<div class="sec" style="color:#b388ff">🟣 Liberados en stock · ${liberados.length}</div>`; liberados.forEach(p=>{ h+=pCard(p); }); }
-  if (stockSold.length) { h += `<div class="sec" style="color:#ff8a65">🟠 Stock vendido · ${stockSold.length}</div>`; stockSold.forEach(p=>{ h+=pCard(p); }); }
-  document.getElementById('content').innerHTML = h;
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:12px;">
+      <div class="filters" style="flex:1;margin:0;">
+        <button class="fbtn ${state.filter==='todos'?'on':''}" data-f="todos" onclick="setFilter('todos')">Todos</button>
+        <button class="fbtn ${state.filter==='pendientes'?'on':''}" data-f="pendientes" onclick="setFilter('pendientes')">Pendientes</button>
+        <button class="fbtn ${state.filter==='retirados'?'on':''}" data-f="retirados" onclick="setFilter('retirados')">Retirados</button>
+        <button class="fbtn ${state.filter==='esperando'?'on':''}" data-f="esperando" onclick="setFilter('esperando')">💙 Pagado/Esp.</button>
+        <button class="fbtn ${state.filter==='liberados'?'on':''}" data-f="liberados" onclick="setFilter('liberados')">🟣 Liberados</button>
+      </div>
+      <button onclick="toggleSort()" title="Cambiar orden"
+        style="flex-shrink:0;padding:7px 12px;border-radius:20px;border:1.5px solid var(--border);background:#fff;color:var(--text2);font-size:13px;cursor:pointer;white-space:nowrap;font-weight:600;">
+        ${state.sortAlpha ? '🔤 A–Z' : '#️⃣ N°'}
+      </button>
+    </div>
+    <div id="lista-results">${resultHtml}</div>`;
+
+  // Restaurar foco si había búsqueda activa
+  if (state.search) {
+    const si = document.getElementById('search-in');
+    if (si) { si.focus(); si.setSelectionRange(si.value.length, si.value.length); }
+  }
 }
 
 function pCard(p) {
@@ -498,12 +523,21 @@ function renderCargar() {
   document.getElementById('content').innerHTML = `
     <div class="cargar-card">
       <div class="cargar-title">📷 Opción 1 — Foto a la planilla</div>
-      <div class="ocr-zone" onclick="document.getElementById('ocr-file-in').click()">
-        <span class="ocr-ico">📄</span>
-        <div class="ocr-text">Tocá para subir foto(s) de la planilla</div>
-        <span class="ocr-tag">Múltiples fotos · el sistema las une</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">
+        <div class="ocr-zone" onclick="document.getElementById('ocr-gallery-in').click()" style="padding:16px;">
+          <span class="ocr-ico" style="font-size:24px;">🖼️</span>
+          <div class="ocr-text" style="font-size:13px;">Galería</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px;">fotos existentes</div>
+        </div>
+        <div class="ocr-zone" onclick="document.getElementById('ocr-camera-in').click()" style="padding:16px;">
+          <span class="ocr-ico" style="font-size:24px;">📷</span>
+          <div class="ocr-text" style="font-size:13px;">Cámara</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px;">sacar foto ahora</div>
+        </div>
       </div>
-      <input type="file" id="ocr-file-in" accept="image/*" multiple style="display:none" onchange="ocrAddPhotos(this)"/>
+      <input type="file" id="ocr-gallery-in" accept="image/*" multiple style="display:none" onchange="ocrAddPhotos(this)"/>
+      <input type="file" id="ocr-camera-in" accept="image/*" capture="environment" style="display:none" onchange="ocrAddPhotos(this)"/>
+      <span class="ocr-tag" style="display:block;text-align:center;margin-bottom:4px;">Múltiples fotos · el sistema las une</span>
       <div class="photo-chips" id="photo-chips"></div>
       <div id="ocr-progress" style="display:none;text-align:center;padding:10px;font-size:13px;color:var(--text2);">⏳ Procesando fotos...</div>
       <button class="btn-add" id="ocr-btn-process" style="display:none;margin-top:8px;" onclick="ocrProcesar()">🔍 Leer planilla con OCR</button>
@@ -609,10 +643,11 @@ function drawModal() {
     <div class="modal-lbl" style="margin-top:4px;">¿Qué acción realizás?</div>
     <div class="opt-group" style="flex-wrap:wrap;">
       <div class="opt ${modalAction==='retiro'?'on':''}" onclick="selAction('retiro')" style="min-width:120px;">✅ Retiro normal</div>
-      <div class="opt ${modalAction==='pagado-esp'?'on':''}" onclick="selAction('pagado-esp')" style="min-width:120px;color:#5bc4f5">💙 Pagó / no entregado</div>
-      <div class="opt ${modalAction==='liberar'?'on':''}" onclick="selAction('liberar')" style="min-width:120px;color:#b388ff">🟣 Liberar stock</div>
-      <div class="opt ${modalAction==='stock-venta'?'on':''}" onclick="selAction('stock-venta')" style="min-width:120px;color:#ff8a65">🟠 Vender como stock</div>
-      ${isEsp?`<div class="opt ${modalAction==='entregar'?'on':''}" onclick="selAction('entregar')" style="min-width:120px;color:#2ecc8a">📦 Confirmar entrega</div>`:''}
+      <div class="opt ${modalAction==='pagado-esp'?'on':''}" onclick="selAction('pagado-esp')" style="min-width:120px;color:var(--blue)">💙 Pagó / no entregado</div>
+      <div class="opt ${modalAction==='liberar'?'on':''}" onclick="selAction('liberar')" style="min-width:120px;color:var(--purple)">🟣 Liberar stock</div>
+      <div class="opt ${modalAction==='stock-venta'?'on':''}" onclick="selAction('stock-venta')" style="min-width:120px;color:var(--coral)">🟠 Vender como stock</div>
+      ${isEsp?`<div class="opt ${modalAction==='entregar'?'on':''}" onclick="selAction('entregar')" style="min-width:120px;color:var(--green)">📦 Confirmar entrega</div>`:''}
+      <div class="opt ${modalAction==='eliminar'?'on':''}" onclick="selAction('eliminar')" style="min-width:120px;color:var(--red)">🗑️ Dar de baja</div>
     </div>
 
     ${(modalAction==='retiro'||modalAction==='pagado-esp'||modalAction==='stock-venta'||modalAction==='entregar')?`
@@ -638,6 +673,12 @@ function drawModal() {
     <div class="modal-lbl">Precio de venta stock</div>
     <input class="finput" id="modal-stock-price" type="number" placeholder="Precio de venta..." value="${p.stockPrice||p.price||''}"/>
     `:''}
+
+    ${modalAction==='eliminar'?`
+    <div style="background:var(--red-bg);border:1.5px solid #f0c8c8;border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;">
+      <div style="font-size:13px;color:var(--red);font-weight:600;margin-bottom:4px;">⚠️ ¿Dar de baja a este paciente?</div>
+      <div style="font-size:12px;color:var(--red);opacity:.8;">Se eliminará de la planilla actual. Esta acción no se puede deshacer.</div>
+    </div>`:''}
 
     <textarea class="mnote" id="modal-note-in" rows="2" placeholder="Nota opcional...">${p.note||''}</textarea>
     ${modalAction?`<button class="btn-primary" onclick="confirmAccion()" style="margin-bottom:0;">Confirmar</button>`:''}
@@ -692,6 +733,12 @@ window.confirmAccion = async () => {
       status:'stock-sold', price: precio, payType:payMode, dest:transferDest||null, date:now(), note
     });
     toast('🟠 Stock vendido registrado');
+    closeModal(); return;
+  }
+
+  if (modalAction === 'eliminar') {
+    await remove(ref(db, 'patients/'+modalPatient._key));
+    toast('🗑️ Paciente dado de baja');
     closeModal(); return;
   }
 
@@ -792,7 +839,35 @@ window.setTab = t => {
 };
 
 window.setFilter = f => { state.filter=f; renderContent(); };
-window.doSearch = v => { state.search=v; renderContent(); };
+
+window.doSearch = v => {
+  state.search = v;
+  // Re-render la lista sin mover el foco del input
+  const list = filtered();
+  const pending = list.filter(p=>p.status==='pending');
+  const done = list.filter(p=>p.status==='done');
+  const esperando = list.filter(p=>p.status==='pagado-esperando');
+  const liberados = list.filter(p=>p.status==='liberado');
+  const stockSold = list.filter(p=>p.status==='stock-sold');
+
+  // Actualizar solo los filtros y la lista de pacientes, NO el input
+  const fbtns = document.querySelector('.filters');
+  if (fbtns) {
+    fbtns.querySelectorAll('.fbtn').forEach(b => b.className = 'fbtn' + (b.dataset.f === state.filter ? ' on' : ''));
+  }
+
+  let h = '';
+  if (!list.length) h = `<div class="empty">Sin resultados</div>`;
+  if (pending.length) { h += `<div class="sec">⏳ Pendientes · ${pending.length}</div>`; pending.forEach(p=>{ h+=pCard(p); }); }
+  if (esperando.length) { h += `<div class="sec" style="color:var(--blue)">💙 Pagado · esperando entrega · ${esperando.length}</div>`; esperando.forEach(p=>{ h+=pCard(p); }); }
+  if (done.length) { h += `<div class="sec">✅ Retirados · ${done.length}</div>`; done.forEach(p=>{ h+=pCard(p); }); }
+  if (liberados.length) { h += `<div class="sec" style="color:var(--purple)">🟣 Liberados en stock · ${liberados.length}</div>`; liberados.forEach(p=>{ h+=pCard(p); }); }
+  if (stockSold.length) { h += `<div class="sec" style="color:var(--coral)">🟠 Stock vendido · ${stockSold.length}</div>`; stockSold.forEach(p=>{ h+=pCard(p); }); }
+
+  const listContainer = document.getElementById('lista-results');
+  if (listContainer) listContainer.innerHTML = h;
+};
+
 window.openModal = openModal;
 
 // ─── OCR ─────────────────────────────────────────────────────────────────────
