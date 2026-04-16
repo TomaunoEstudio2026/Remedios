@@ -886,7 +886,6 @@ window.doSearch = v => {
 window.openModal = openModal;
 
 // ─── OCR ─────────────────────────────────────────────────────────────────────
-const VISION_KEY = 'AIzaSyBtTGAJ1X3yrvj-Dx-fsNmfe_Zw09yfrZo';
 let ocrPhotos = []; // { file, dataUrl }
 let ocrResultados = []; // parsed rows
 
@@ -929,82 +928,50 @@ window.ocrProcesar = async () => {
   if (!ocrPhotos.length) { toast('Agregá al menos una foto'); return; }
   const prog = document.getElementById('ocr-progress');
   prog.style.display = 'block';
-  prog.innerHTML = '⏳ Leyendo planilla con IA... puede tardar unos segundos';
+  prog.innerHTML = '⏳ Cargando motor OCR...';
   document.getElementById('ocr-btn-process').style.display = 'none';
 
-  const imageBlocks = ocrPhotos.map(p => ({
-    type: 'image',
-    source: {
-      type: 'base64',
-      media_type: p.file.type || 'image/jpeg',
-      data: p.dataUrl.split(',')[1]
-    }
-  }));
-
-  const prompt = `Sos un asistente que lee planillas de remedios/medicamentos argentinas.
-Analizá la/s imagen/es y extraé TODOS los pacientes de la tabla. Cada fila tiene: número de orden, apellido y nombre, código de medicamento (ej: CO80, CO120, AM1-CO80) y precio (ej: 44000, 46000).
-También buscá el total general de la planilla si aparece (número grande, ej: 1778000).
-
-Respondé SOLO con un JSON válido, sin explicaciones ni markdown, con este formato exacto:
-{"total": 1778000, "pacientes": [{"bag": 1, "name": "Ledesma Sebastiana", "code": "CO80", "price": 44000}]}
-
-IMPORTANTE:
-- Incluí TODOS los pacientes que veas, no te saltes ninguno
-- Si el precio no se ve claramente, poné 0
-- Si el código no se lee bien, dejalo vacío
-- El nombre debe ser Apellido + Nombre tal como aparece en la planilla
-- bag es el número de orden de la fila
-- No incluyas anotaciones manuscritas como PAGO CBU, PAGO EFECTIVO en el nombre`;
-
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        messages: [{ role: 'user', content: [...imageBlocks, { type: 'text', text: prompt }] }]
-      })
+  // Cargar Tesseract.js si no está cargado
+  if (!window.Tesseract) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('No se pudo cargar Tesseract'));
+      document.head.appendChild(s);
     });
-
-    const data = await resp.json();
-    const rawText = data.content?.[0]?.text || '';
-    const cleaned = rawText.replace(/```json|```/g, '').trim();
-    let parsed;
-    try { parsed = JSON.parse(cleaned); }
-    catch(e) { const m = cleaned.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
-
-    prog.style.display = 'none';
-
-    if (!parsed || !Array.isArray(parsed.pacientes) || !parsed.pacientes.length) {
-      toast('No se encontraron datos — asegurate que la foto muestre la tabla completa');
-      document.getElementById('ocr-btn-process').style.display = 'block';
-      return;
-    }
-
-    ocrResultados = parsed.pacientes.map(r => ({
-      bag: parseInt(r.bag) || 0,
-      name: (r.name || '').trim(),
-      price: parseInt(r.price) || 0,
-      code: (r.code || '').trim(),
-      note: ''
-    })).filter(r => r.name.length >= 2);
-
-    parseOCRText._lastTotal = parsed.total || 0;
-
-    if (!ocrResultados.length) {
-      toast('No se pudieron extraer pacientes — intentá con otra foto');
-      document.getElementById('ocr-btn-process').style.display = 'block';
-      return;
-    }
-
-    renderOCRPreview();
-
-  } catch(e) {
-    prog.style.display = 'none';
-    toast('Error de conexión — verificá internet');
-    document.getElementById('ocr-btn-process').style.display = 'block';
   }
+
+  let allText = '';
+  for (let i = 0; i < ocrPhotos.length; i++) {
+    prog.innerHTML = `⏳ Leyendo foto ${i+1} de ${ocrPhotos.length}... (puede tardar 20-40 seg)`;
+    try {
+      const result = await Tesseract.recognize(ocrPhotos[i].dataUrl, 'spa', {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            prog.innerHTML = `⏳ Procesando foto ${i+1}... ${Math.round(m.progress*100)}%`;
+          }
+        }
+      });
+      allText += result.data.text + '\n';
+    } catch(e) {
+      prog.style.display = 'none';
+      toast('Error procesando foto — intentá de nuevo');
+      document.getElementById('ocr-btn-process').style.display = 'block';
+      return;
+    }
+  }
+
+  prog.style.display = 'none';
+  ocrResultados = parseOCRText(allText);
+
+  if (!ocrResultados.length) {
+    toast('No se pudieron leer datos — intentá con mejor foto o cargá manualmente');
+    document.getElementById('ocr-btn-process').style.display = 'block';
+    return;
+  }
+
+  renderOCRPreview();
 };
 
 function parseOCRText(text) {
@@ -1012,35 +979,45 @@ function parseOCRText(text) {
   const results = [];
   const seenBags = new Set();
 
-  // ─── Detectar total de referencia (número grande, ej: 1778000) ───
-  // Buscamos el número más grande que aparezca en el texto (>= 6 dígitos)
+  // Detectar total de referencia (número >= 6 dígitos)
   let detectedTotal = 0;
   const bigNums = [...text.matchAll(/\b(\d{6,10})\b/g)].map(m=>parseInt(m[1]));
   if (bigNums.length) detectedTotal = Math.max(...bigNums);
 
   for (const line of lines) {
-    const m = line.match(/^(\d{1,3})\s+(.+)/);
+    // Limpiar caracteres raros que Tesseract introduce
+    const clean = line.replace(/[|\\]/g, '').replace(/\s+/g, ' ').trim();
+
+    // Buscar línea que empiece con número (el N° de orden)
+    const m = clean.match(/^[Oo0]?\s*(\d{1,3})[.\s)\-]+(.+)/);
     if (!m) continue;
+
     const bag = parseInt(m[1]);
-    if (bag < 1 || bag > 200) continue;
+    if (bag < 1 || bag > 300) continue;
     if (seenBags.has(bag)) continue;
 
-    const rest = m[2];
+    let rest = m[2].trim();
 
-    // Extraer precio — número grande al final (ej: 44000, 46000)
-    const priceMatch = rest.match(/(\d{4,7})\s*$/);
+    // Saltar líneas que son claramente encabezados
+    if (/fecha|comp|precio|nombre|apellido|planilla/i.test(rest)) continue;
+
+    // Extraer precio — número de 4-7 dígitos al final
+    const priceMatch = rest.match(/(\d{4,7})\s*[*]?\s*$/);
     const price = priceMatch ? parseInt(priceMatch[1]) : 0;
 
-    // Extraer código de medicamento (ej: CO80, CO120, AM1-CO80)
-    const codeMatch = rest.match(/([A-Z]{1,4}\d{1,3}(?:-[A-Z]{1,4}\d{1,3})?)/);
+    // Extraer código (CO80, CO120, AM1-CO80, etc)
+    const codeMatch = rest.match(/\b([A-Z]{1,4}\d{1,3}(?:-[A-Z]{1,4}\d{1,3})?)\b/);
     const code = codeMatch ? codeMatch[1] : '';
 
-    // El nombre es lo que queda antes del código/precio
+    // Nombre: quitar código, precio y anotaciones manuscritas conocidas
     let name = rest;
     if (code) name = name.replace(code, '');
     if (priceMatch) name = name.replace(priceMatch[0], '');
-    name = name.replace(/\s{2,}/g, ' ').trim();
-    name = name.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g, '').trim();
+    // Quitar anotaciones tipo "PAGO CBU", "PAGO EFECTIVO", "pagó cbu ali", etc
+    name = name.replace(/pag[oó].{0,20}/gi, '');
+    name = name.replace(/efectivo|transferencia|cbu|alias/gi, '');
+    // Limpiar caracteres sueltos
+    name = name.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g, ' ').replace(/\s+/g, ' ').trim();
 
     if (name.length < 3) continue;
 
@@ -1048,11 +1025,10 @@ function parseOCRText(text) {
     results.push({ bag, name, price, code, note: '' });
   }
 
-  // Guardar el total detectado para mostrarlo en la preview
   parseOCRText._lastTotal = detectedTotal;
-
   return results.sort((a, b) => a.bag - b.bag);
 }
+
 
 function renderOCRPreview() {
   const wrap = document.getElementById('ocr-preview-wrap');
@@ -1278,7 +1254,7 @@ window.exportarPDF = () => {
   ${done.length?`<div class="sec-title">✅ Retirados · ${done.length}</div>
   <table><thead><tr><th>#</th><th>Paciente</th><th>Código</th><th>Precio</th><th>Canal</th><th>Fecha / Nota</th></tr></thead>
   <tbody>${rowsDone}</tbody></table>`:''}
-  <script>window.onload=()=>window.print()<\/script>
+  <scr'+'ipt>window.onload=()=>window.print()</scr'+'ipt>
   </body></html>`;
 
   const blob = new Blob([html], {type:'text/html'});
