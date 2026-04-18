@@ -343,12 +343,14 @@ const calcTotals = () => {
   const pendAmt = all.filter(p=>p.status==='pending').reduce((s,p)=>s+(p.price||0),0);
   const ref = state.settings.refTotal || 0;
   const diff = totalCob - ref;
-  // Comisión
-  const comPct = state.settings.comision || 0;
-  const comAmt = comPct ? Math.round(totalCob * comPct / 100) : 0;
+  // Ganancia Alicia: monto fijo por cada paciente que cobró
+  const ganPorConsulta = state.settings.gananciaConsulta || 0;
+  const comAmt = ganPorConsulta * cobrados.length;
+  const comPct = 0; // ya no se usa porcentaje
   const paraDoctor = totalCob - comAmt;
   return {totalEsp,totalCob,cash,cashN,ta,taN,tb,tbN,tc,tcN,pend,pendAmt,ref,diff,
-          totalStock,stockN,liberadosN,esperandoN,esperandoAmt,comPct,comAmt,paraDoctor};
+          totalStock,stockN,liberadosN,esperandoN,esperandoAmt,comPct,comAmt,paraDoctor,
+          ganPorConsulta,totalPacPagaron:cobrados.length};
 };
 
 // ─── RENDER HEADER ──────────────────────────────────────────────────────────
@@ -484,14 +486,13 @@ function renderTotales() {
       </div>`:''}
     </div>
 
-    ${t.comPct>0?`
-    <div class="channels-card" style="border:1px solid rgba(46,204,138,0.2);">
-      <div class="ch-title">💰 Liquidación</div>
-      ${chRow('#2ecc8a','Total cobrado','',t.totalCob)}
-      ${chRow('#ff6b6b','Para el doctor','',(t.paraDoctor))}
-      ${chRow('#f5c842','Comisión ('+t.comPct+'%)','tu ganancia',t.comAmt)}
-    </div>`:''}
-
+    ${t.ganPorConsulta>0?`
+    <div class="channels-card" style="border:1.5px solid #c0e8d4;">
+      <div class="ch-title">💰 Liquidación de Alicia</div>
+      ${chRow('#18a86b','Total cobrado','',t.totalCob)}
+      ${chRow('#e05252','Para el doctor','a entregar',t.paraDoctor)}
+      ${chRow('#f5c842','Ganancia Alicia',t.totalPacPagaron+' pac. × '+peso(t.ganPorConsulta),t.comAmt)}
+    </div>`:'<div style="font-size:12px;color:var(--text3);text-align:center;padding:8px 0;">Configurá la ganancia por consulta en ⚙ Ajustes</div>'}
     <div class="channels-card">
       <div class="ch-title">Desglose por canal</div>
       ${chRow('#f5c842','Efectivo',t.cashN+' pac.',t.cash)}
@@ -522,7 +523,30 @@ function chRow(color, name, sub, amt) {
 function renderCargar() {
   document.getElementById('content').innerHTML = `
     <div class="cargar-card">
-      <div class="cargar-title">📷 Opción 1 — Foto a la planilla</div>
+      <div class="cargar-title">📋 Opción 1 — Pegar texto (Google Lens)</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.5;">
+        Usá <strong>Google Lens</strong> para leer la planilla, copiá el texto y pegalo acá. No importa si tiene renglones vacíos.
+      </div>
+      <textarea id="ocr-paste-text" class="mnote" rows="8"
+        placeholder="Pegá el texto de Google Lens aquí...
+
+Ejemplo (puede venir con renglones vacíos entre pacientes, está bien):
+1
+Garcia Laura
+CO80
+44000
+
+2
+Martinez Roberto
+CO80 44000"
+        style="margin-bottom:10px;font-size:13px;font-family:var(--mono);"></textarea>
+      <button class="btn-add" onclick="procesarTexto()">🔍 Interpretar y previsualizar</button>
+    </div>
+
+    <div class="divider-or">— o bien —</div>
+
+    <div class="cargar-card">
+      <div class="cargar-title">📷 Opción 2 — Foto directa (OCR automático)</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">
         <div class="ocr-zone" onclick="document.getElementById('ocr-gallery-in').click()" style="padding:16px;">
           <span class="ocr-ico" style="font-size:24px;">🖼️</span>
@@ -542,19 +566,22 @@ function renderCargar() {
       <div id="ocr-progress" style="display:none;text-align:center;padding:10px;font-size:13px;color:var(--text2);">⏳ Procesando fotos...</div>
       <button class="btn-add" id="ocr-btn-process" style="display:none;margin-top:8px;" onclick="ocrProcesar()">🔍 Leer planilla con OCR</button>
     </div>
-    <!-- OCR PREVIEW MODAL -->
+
+    <!-- PREVIEW COMPARTIDA -->
     <div id="ocr-preview-wrap" style="display:none;">
-      <div class="cargar-card" style="border:1px solid rgba(46,204,138,0.3);">
-        <div class="cargar-title" style="color:var(--green);">✅ OCR completado — revisá antes de confirmar</div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Corregí cualquier dato mal leído antes de guardar.</div>
+      <div class="cargar-card" style="border:1.5px solid #c0e8d4;">
+        <div class="cargar-title" style="color:var(--green);">✅ Revisá antes de guardar</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Corregí cualquier dato mal leído antes de confirmar.</div>
         <div id="ocr-rows-container"></div>
         <button class="btn-primary" onclick="ocrConfirmar()" style="margin-top:10px;">💾 Guardar todos en la planilla</button>
         <button class="btn-secondary" onclick="ocrCancelar()">Cancelar</button>
       </div>
     </div>
+
     <div class="divider-or">— o bien —</div>
+
     <div class="cargar-card">
-      <div class="cargar-title">✏️ Opción 2 — Carga manual</div>
+      <div class="cargar-title">✏️ Opción 3 — Carga manual</div>
       <input class="finput" id="mn-name" placeholder="Apellido y nombre..." />
       <div class="frow">
         <input class="finput" id="mn-bag" type="number" placeholder="N° bolsita" style="margin:0"/>
@@ -648,8 +675,20 @@ function drawModal() {
       <div class="opt ${modalAction==='liberar'?'on':''}" onclick="selAction('liberar')" style="min-width:120px;color:var(--purple)">🟣 Liberar stock</div>
       <div class="opt ${modalAction==='stock-venta'?'on':''}" onclick="selAction('stock-venta')" style="min-width:120px;color:var(--coral)">🟠 Vender como stock</div>
       ${isEsp?`<div class="opt ${modalAction==='entregar'?'on':''}" onclick="selAction('entregar')" style="min-width:120px;color:var(--green)">📦 Confirmar entrega</div>`:''}
+      <div class="opt ${modalAction==='editar'?'on':''}" onclick="selAction('editar')" style="min-width:120px;color:var(--amber)">✏️ Editar datos</div>
       <div class="opt ${modalAction==='eliminar'?'on':''}" onclick="selAction('eliminar')" style="min-width:120px;color:var(--red)">🗑️ Dar de baja</div>
     </div>
+
+    ${modalAction==='editar'?`
+    <div style="background:var(--amber-bg);border:1.5px solid #e8d890;border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;">
+      <div style="font-size:12px;color:var(--amber);font-weight:700;margin-bottom:8px;">✏️ Editar datos del paciente</div>
+      <input class="finput" id="edit-name" value="${p.name||''}" placeholder="Nombre" style="margin-bottom:7px;"/>
+      <div style="display:flex;gap:7px;margin-bottom:7px;">
+        <input class="finput" id="edit-bag" type="number" value="${p.bag||''}" placeholder="N° bolsita" style="margin:0;flex:1;"/>
+        <input class="finput" id="edit-price" type="number" value="${p.price||''}" placeholder="$ Precio" style="margin:0;flex:1;"/>
+      </div>
+      <input class="finput" id="edit-code" value="${p.code||''}" placeholder="Código med." style="margin-bottom:0;"/>
+    </div>`:''}
 
     ${(modalAction==='retiro'||modalAction==='pagado-esp'||modalAction==='stock-venta'||modalAction==='entregar')?`
     <div class="modal-lbl">Forma de pago</div>
@@ -734,6 +773,20 @@ window.confirmAccion = async () => {
       status:'stock-sold', price: precio, payType:payMode, dest:transferDest||null, date:now(), note
     });
     toast('🟠 Stock vendido registrado');
+    closeModal(); return;
+  }
+
+  if (modalAction === 'editar') {
+    const newName = document.getElementById('edit-name')?.value.trim();
+    const newBag = parseInt(document.getElementById('edit-bag')?.value)||0;
+    const newPrice = parseInt(document.getElementById('edit-price')?.value)||0;
+    const newCode = document.getElementById('edit-code')?.value.trim()||'';
+    if (!newName || !newBag) { toast('Nombre y N° bolsita son obligatorios'); return; }
+    await update(ref(db,'patients/'+modalPatient._key), {
+      name: newName, bag: newBag, price: newPrice, code: newCode,
+      note: noteEl ? noteEl.value : (modalPatient.note||'')
+    });
+    toast('✏️ Datos actualizados');
     closeModal(); return;
   }
 
@@ -823,8 +876,9 @@ window.openSettings = () => {
     <div class="sett-row"><div class="acc-dot" style="background:#5bc4f5"></div><span class="sett-lbl">Cuenta A</span><input class="finput" id="sett-a" value="${s.accA||''}" style="margin:0;flex:1"/></div>
     <div class="sett-row"><div class="acc-dot" style="background:#b388ff"></div><span class="sett-lbl">Cuenta B</span><input class="finput" id="sett-b" value="${s.accB||''}" style="margin:0;flex:1"/></div>
     <div class="sett-row"><div class="acc-dot" style="background:#ff8a65"></div><span class="sett-lbl">Cuenta C</span><input class="finput" id="sett-c" value="${s.accC||''}" style="margin:0;flex:1"/></div>
-    <div class="modal-lbl" style="margin-top:8px;">Comisión de tu hermana (%)</div>
-    <input class="finput" id="sett-com" type="number" value="${s.comision||''}" placeholder="Ej: 10 (para 10%)"/>
+    <div class="modal-lbl" style="margin-top:8px;">Ganancia de Alicia por consulta</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">Monto fijo que gana por cada paciente atendido (ej: 8000)</div>
+    <input class="finput" id="sett-com" type="number" value="${s.gananciaConsulta||''}" placeholder="Ej: 8000"/>
     <button class="btn-primary" style="margin-top:14px;" onclick="saveSettings()">Guardar ajustes</button>
     <button class="btn-secondary" onclick="closeModal()">Cancelar</button>
   </div>`;
@@ -837,7 +891,7 @@ window.saveSettings = async () => {
     accA: document.getElementById('sett-a').value.trim(),
     accB: document.getElementById('sett-b').value.trim(),
     accC: document.getElementById('sett-c').value.trim(),
-    comision: parseFloat(document.getElementById('sett-com').value)||0,
+    gananciaConsulta: parseInt(document.getElementById('sett-com').value)||0,
   };
   await update(ref(db,'settings'), upd);
   toast('✓ Ajustes guardados');
@@ -885,9 +939,135 @@ window.doSearch = v => {
 
 window.openModal = openModal;
 
-// ─── OCR ─────────────────────────────────────────────────────────────────────
-let ocrPhotos = []; // { file, dataUrl }
-let ocrResultados = []; // parsed rows
+// ─── PEGAR TEXTO (Google Lens) ───────────────────────────────────────────────
+let ocrResultados = [];
+
+window.procesarTexto = () => {
+  const raw = (document.getElementById('ocr-paste-text')?.value || '').trim();
+  if (!raw) { toast('Pegá texto antes de continuar'); return; }
+  ocrResultados = parseTextoMultiLinea(raw);
+  if (!ocrResultados.length) { toast('No se encontraron pacientes — revisá el formato'); return; }
+  renderOCRPreview();
+};
+
+function parseTextoMultiLinea(text) {
+  // Detectar total de referencia (número grande >= 6 dígitos)
+  let detectedTotal = 0;
+  const bigNums = [...text.matchAll(/\b(\d{6,10})\b/g)].map(m => parseInt(m[1]));
+  if (bigNums.length) detectedTotal = Math.max(...bigNums);
+  parseOCRText._lastTotal = detectedTotal;
+
+  // Unir bloques multi-línea: juntar líneas no vacías consecutivas
+  // separadas por líneas vacías, formando "bloques" por paciente
+  const bloques = text.split(/\n{2,}/).map(b => b.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean);
+
+  const results = [];
+  const seenBags = new Set();
+
+  // También procesar línea por línea como fallback
+  const lineas = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const fuenteLineas = bloques.length > 1 ? bloques : lineas;
+
+  for (const bloque of fuenteLineas) {
+    // Buscar número de orden al inicio (puede venir solo o seguido del resto)
+    const m = bloque.match(/^[Oo0]?\s*(\d{1,3})[.\s)\-]*(.*)/);
+    if (!m) continue;
+    const bag = parseInt(m[1]);
+    if (bag < 1 || bag > 300) continue;
+    if (seenBags.has(bag)) continue;
+
+    let rest = m[2].trim();
+
+    // Si el bloque era solo el número, buscar en las siguientes líneas
+    // (ya está unido en el bloque, pero por si acaso)
+    if (!rest) continue;
+
+    // Saltar encabezados
+    if (/fecha|comp\.?|precio|nombre|apellido|planilla|cant/i.test(rest) && rest.length < 30) continue;
+
+    // Extraer precio — 4 a 7 dígitos
+    const priceMatch = rest.match(/(\d{4,7})\s*[*]?\s*$/);
+    const price = priceMatch ? parseInt(priceMatch[1]) : 0;
+
+    // Extraer código de medicamento
+    const codeMatch = rest.match(/\b([A-Z]{1,4}\d{1,3}(?:-[A-Z]{1,4}\d{1,3})?)\b/);
+    const code = codeMatch ? codeMatch[1] : '';
+
+    // Construir nombre limpio
+    let name = rest;
+    if (code) name = name.replace(code, '');
+    if (priceMatch) name = name.replace(priceMatch[0], '');
+    name = name.replace(/pag[oó].{0,25}/gi, '').replace(/efectivo|transferencia|cbu|alias/gi, '');
+    name = name.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    if (name.length < 3) continue;
+    seenBags.add(bag);
+    results.push({ bag, name, price, code, note: '' });
+  }
+
+  return results.sort((a, b) => a.bag - b.bag);
+}
+
+function renderOCRPreview() {
+  const wrap = document.getElementById('ocr-preview-wrap');
+  const container = document.getElementById('ocr-rows-container');
+  if (!wrap || !container) return;
+
+  const detectedTotal = parseOCRText._lastTotal || 0;
+  const totalHtml = `
+    <div style="background:var(--amber-bg);border:1px solid #e8d890;border-radius:var(--radius-sm);padding:12px;margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--amber);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;font-weight:700;">📋 Total de referencia</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input class="finput" id="ocr-ref-total" type="number" style="margin:0;flex:1;" value="${detectedTotal||''}" placeholder="Total impreso en la planilla..."/>
+        ${detectedTotal?`<span style="font-size:11px;color:var(--amber);white-space:nowrap;">🔍 detectado</span>`:`<span style="font-size:11px;color:var(--text3);white-space:nowrap;">escribilo si lo tenés</span>`}
+      </div>
+    </div>`;
+
+  container.innerHTML = totalHtml + ocrResultados.map((r, i) => `
+    <div style="background:var(--card2);border-radius:var(--radius-sm);padding:10px;margin-bottom:7px;">
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <input class="finput" style="margin:0;width:58px;flex-shrink:0;" type="number" value="${r.bag}" placeholder="#" oninput="ocrUpdate(${i},'bag',this.value)"/>
+        <input class="finput" style="margin:0;flex:1;" value="${r.name}" placeholder="Nombre" oninput="ocrUpdate(${i},'name',this.value)"/>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <input class="finput" style="margin:0;flex:1;" type="number" value="${r.price||''}" placeholder="$ Precio" oninput="ocrUpdate(${i},'price',this.value)"/>
+        <input class="finput" style="margin:0;width:90px;" value="${r.code||''}" placeholder="Cód." oninput="ocrUpdate(${i},'code',this.value)"/>
+        <button onclick="ocrDeleteRow(${i})" style="background:var(--red-bg);border:none;border-radius:var(--radius-sm);color:var(--red);padding:0 10px;cursor:pointer;font-size:16px;">✕</button>
+      </div>
+    </div>`).join('');
+
+  container.innerHTML += `<button class="btn-add" onclick="ocrAgregarFila()" style="margin-top:4px;">+ Agregar fila manualmente</button>`;
+  wrap.style.display = 'block';
+  wrap.scrollIntoView({ behavior: 'smooth' });
+}
+
+window.ocrUpdate = (i, field, val) => { if(ocrResultados[i]) ocrResultados[i][field] = field==='bag'||field==='price' ? parseInt(val)||0 : val; };
+window.ocrDeleteRow = (i) => { ocrResultados.splice(i,1); renderOCRPreview(); };
+window.ocrAgregarFila = () => { ocrResultados.push({bag:0,name:'',price:0,code:'',note:''}); renderOCRPreview(); };
+
+window.ocrConfirmar = async () => {
+  const validos = ocrResultados.filter(r => r.name && r.bag > 0);
+  if (!validos.length) { toast('No hay filas válidas para guardar'); return; }
+  const refEl = document.getElementById('ocr-ref-total');
+  const refVal = refEl ? parseInt(refEl.value)||0 : 0;
+  if (refVal > 0) await update(ref(db,'settings'), { refTotal: refVal });
+  for (const r of validos) {
+    await push(ref(db,'patients'), { name:r.name, bag:r.bag, price:r.price||0, code:r.code||'', note:r.note||'', status:'pending', payType:null, dest:null, date:null });
+  }
+  toast(`✓ ${validos.length} pacientes cargados${refVal?' + total guardado':''}`);
+  ocrCancelar();
+};
+
+window.ocrCancelar = () => {
+  ocrResultados = [];
+  const wrap = document.getElementById('ocr-preview-wrap');
+  if (wrap) wrap.style.display = 'none';
+  const t1 = document.getElementById('ocr-paste-text');
+  if (t1) t1.value = '';
+};
+
+function parseOCRText() {}
+parseOCRText._lastTotal = 0;
 
 window.ocrAddPhotos = async (input) => {
   const files = Array.from(input.files);
