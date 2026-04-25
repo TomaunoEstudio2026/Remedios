@@ -92,6 +92,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .pcard.stock-sold::before{background:var(--coral);}
 .pcard.stock-sold{background:var(--coral-bg);border-color:#e8c4a0;}
 .pcard.stock-sold .pcard-name{text-decoration:line-through;color:var(--text3);}
+.pcard.stock-pagado-esp::before{background:var(--coral);}
+.pcard.stock-pagado-esp{background:#fff5f0;border-color:#f0c8a0;}
+.sp-stock-esp{background:#fff5f0;color:var(--coral);border:1.5px solid #f0c8a0;}
 
 /* TOTALS TAB */
 .total-hero{background:var(--green);border-radius:var(--radius);padding:22px;text-align:center;margin-bottom:12px;}
@@ -313,7 +316,7 @@ const accColor = k => ({ a:'#5bc4f5', b:'#b388ff', c:'#ff8a65', cash:'#f5c842' }
 const calcTotals = () => {
   const all = patients();
   // Cobrado = done + pagado-esperando + stock-sold
-  const cobrados = all.filter(p=>p.status==='done'||p.status==='pagado-esperando'||p.status==='stock-sold');
+  const cobrados = all.filter(p=>p.status==='done'||p.status==='pagado-esperando'||p.status==='stock-sold'||p.status==='stock-pagado-esp');
   const totalCob = cobrados.reduce((s,p)=>s+(p.price||0),0);
   // Esperado = planilla original (todos excepto liberados)
   const noLibre = all.filter(p=>p.status!=='liberado');
@@ -388,11 +391,13 @@ function renderLista() {
   const esperando = list.filter(p=>p.status==='pagado-esperando');
   const liberados = list.filter(p=>p.status==='liberado');
   const stockSold = list.filter(p=>p.status==='stock-sold');
+  const stockEsp = list.filter(p=>p.status==='stock-pagado-esp');
 
   let resultHtml = '';
   if (!list.length) resultHtml = `<div class="empty">Sin resultados</div>`;
   if (pending.length) { resultHtml += `<div class="sec">⏳ Pendientes · ${pending.length}</div>`; pending.forEach(p=>{ resultHtml+=pCard(p); }); }
   if (esperando.length) { resultHtml += `<div class="sec" style="color:var(--blue)">💙 Pagado · esperando entrega · ${esperando.length}</div>`; esperando.forEach(p=>{ resultHtml+=pCard(p); }); }
+  if (stockEsp.length) { resultHtml += `<div class="sec" style="color:var(--coral)">🟠 Stock · pagado / sin entregar · ${stockEsp.length}</div>`; stockEsp.forEach(p=>{ resultHtml+=pCard(p); }); }
   if (done.length) { resultHtml += `<div class="sec">✅ Retirados · ${done.length}</div>`; done.forEach(p=>{ resultHtml+=pCard(p); }); }
   if (liberados.length) { resultHtml += `<div class="sec" style="color:var(--purple)">🟣 Liberados en stock · ${liberados.length}</div>`; liberados.forEach(p=>{ resultHtml+=pCard(p); }); }
   if (stockSold.length) { resultHtml += `<div class="sec" style="color:var(--coral)">🟠 Stock vendido · ${stockSold.length}</div>`; stockSold.forEach(p=>{ resultHtml+=pCard(p); }); }
@@ -433,6 +438,7 @@ function pCard(p) {
   const isEsp = st==='pagado-esperando';
   const isLib = st==='liberado';
   const isStockSold = st==='stock-sold';
+  const isStockEsp = st==='stock-pagado-esp';
   let statusHtml = '';
   if (isDone) {
     statusHtml = p.payType==='cash'
@@ -446,23 +452,28 @@ function pCard(p) {
     statusHtml = p.payType==='cash'
       ? `<span class="status-pill sp-stock-sold">🟠 Stock·Ef.</span>`
       : `<span class="status-pill sp-stock-sold">🟠 Stock·${accName(p.dest)}</span>`;
+  } else if (isStockEsp) {
+    statusHtml = `<span class="status-pill sp-stock-esp">🟠 Stock·Esp.</span>`;
   } else {
     statusHtml = `<span class="status-pill sp-pending">Pendiente</span>`;
   }
-  const cssClass = isDone?'done':isEsp?'pagado-esperando':isLib?'liberado':isStockSold?'stock-sold':'pending';
+  const cssClass = isDone?'done':isEsp?'pagado-esperando':isLib?'liberado':isStockSold?'stock-sold':isStockEsp?'stock-pagado-esp':'pending';
   const showPrice = isLib ? (p.stockPrice ? `<span class="pcard-price" style="color:var(--purple)">${peso(p.stockPrice)} <span style="font-size:10px;opacity:.6">stock</span></span>` : `<span class="pcard-price" style="color:var(--text3)">${peso(p.price)} <span style="font-size:10px">original</span></span>`)
     : `<span class="pcard-price">${peso(p.price)}</span>`;
   return `<div class="pcard ${cssClass}" onclick="openModal('${p._key}')">
-    <div class="bag-num" style="${isLib?'background:var(--purple);color:#fff':isEsp?'background:#1a4060;color:#5bc4f5':isStockSold?'background:#5a2a1a;color:#ff8a65':''}">#${p.bag}</div>
+    <div class="bag-num" style="${isLib?'background:var(--purple);color:#fff':isEsp?'background:#1a4060;color:#5bc4f5':(isStockSold||isStockEsp)?'background:#5a2a1a;color:#ff8a65':''}">#${p.bag}</div>
     <div class="pcard-body">
       <div class="pcard-name">${p.name||''}</div>
+      ${p.origName?`<div style="font-size:11px;color:var(--text3);margin-top:1px;font-style:italic;">antes: ${p.origName}</div>`:''}
       <div class="pcard-row">
         ${showPrice}
         ${p.code?`<span class="pcard-code">${p.code}</span>`:''}
       </div>
       ${p.note?`<div class="pcard-note">${p.note}</div>`:''}
+
       ${(isDone||isStockSold)&&p.date?`<div class="pcard-date">Entregado: ${p.date}</div>`:''}
       ${isEsp&&p.date?`<div class="pcard-date" style="color:#5bc4f5">Pagó: ${p.date}</div>`:''}
+      ${isStockEsp&&p.date?`<div class="pcard-date" style="color:var(--coral)">🟠 Pagó: ${p.date} · pendiente entrega</div>`:''}
     </div>
     ${statusHtml}
   </div>`;
@@ -588,7 +599,7 @@ CO80 44000"
         <input class="finput" id="mn-price" type="number" placeholder="$ Precio" style="margin:0"/>
         <input class="finput" id="mn-code" placeholder="Cód. med." style="margin:0"/>
       </div>
-      <input class="finput" id="mn-note" placeholder="Nota opcional (alérgica, etc.)..."/>
+      <input class="finput" id="mn-note" placeholder="Fórmula del medicamento (alérgica, etc.)..."/>
       <button class="btn-add" onclick="addManual()">+ Agregar paciente</button>
     </div>
     <div class="cargar-card">
@@ -649,13 +660,15 @@ function drawModal() {
   const isEsp = st==='pagado-esperando';
   const isLib = st==='liberado';
   const isStockSold = st==='stock-sold';
+  const isStockEsp = st==='stock-pagado-esp';
   const mbg = document.getElementById('modal-bg');
 
   let statusBanner = '';
   if (isDone) statusBanner = `<div class="already-done">✓ Retirado el ${p.date} · ${p.payType==='cash'?'Efectivo':accName(p.dest)}</div>`;
   if (isEsp) statusBanner = `<div class="already-done" style="background:rgba(20,50,80,0.6);border-color:rgba(91,196,245,0.3);color:#5bc4f5">💙 Pagado el ${p.date} · ${p.payType==='cash'?'Efectivo':accName(p.dest)} · Pendiente de entrega</div>`;
   if (isLib) statusBanner = `<div class="already-done" style="background:rgba(40,20,70,0.6);border-color:rgba(179,136,255,0.3);color:#b388ff">🟣 Liberado en stock · Precio stock: ${peso(p.stockPrice||p.price)}</div>`;
-  if (isStockSold) statusBanner = `<div class="already-done" style="background:rgba(60,25,10,0.6);border-color:rgba(255,138,101,0.3);color:#ff8a65">🟠 Vendido como stock el ${p.date} · ${p.payType==='cash'?'Efectivo':accName(p.dest)}</div>`;
+  if (isStockSold) statusBanner = `<div class="already-done" style="background:rgba(60,25,10,0.6);border-color:rgba(255,138,101,0.3);color:#ff8a65">🟠 Vendido como stock el ${p.date} · ${p.payType==='cash'?'Efectivo':accName(p.dest)}${p.origName?' <span style="opacity:.7;font-size:12px;">(antes: '+p.origName+')</span>':''}</div>`;
+  if (st==='stock-pagado-esp') statusBanner = `<div class="already-done" style="background:#fff5f0;border-color:#f0c8a0;color:var(--coral)">🟠 Stock vendido el ${p.date} · Pendiente de entrega${p.stockBuyer?' · '+p.stockBuyer:''}</div>`;
 
   mbg.innerHTML = `<div class="modal" onclick="event.stopPropagation()">
     <div class="modal-handle"></div>
@@ -705,13 +718,29 @@ function drawModal() {
     </div>`:''}`:``}
 
     ${modalAction==='liberar'?`
-    <div class="modal-lbl">Precio de stock (puede ser diferente)</div>
-    <input class="finput" id="modal-stock-price" type="number" placeholder="Nuevo precio..." value="${p.stockPrice||p.price||''}"/>
+    <div class="modal-lbl">Precio de stock <span style="font-size:11px;color:var(--text3);">(precio original + $16.000 — editable)</span></div>
+    <input class="finput" id="modal-stock-price" type="number" placeholder="Nuevo precio..." value="${p.stockPrice||(p.price ? p.price+16000 : '')}"/>
     `:''}
 
     ${modalAction==='stock-venta'?`
+    <div style="background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px;font-size:13px;color:var(--text2);">
+      <span style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.05em;">Paciente original</span><br/>
+      <span style="font-size:15px;font-weight:600;color:var(--text);">${p.name||''}</span>
+    </div>
+    <div class="modal-lbl">Comprador del stock <span style="font-size:11px;color:var(--text3);text-transform:none;font-weight:400;">(buscá en la lista o escribí uno nuevo)</span></div>
+    <div style="position:relative;">
+      <input class="finput" id="modal-stock-buyer" placeholder="Escribí o buscá nombre..." value="${p.stockBuyer||''}"
+        oninput="stockBuyerSearch(this.value)" onblur="setTimeout(()=>{const b=document.getElementById('stock-buyer-suggestions');if(b)b.style.display='none'},150)" autocomplete="off" style="margin-bottom:0;"/>
+      <div id="stock-buyer-suggestions" style="position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid var(--green);border-top:none;border-radius:0 0 var(--radius-sm) var(--radius-sm);z-index:50;max-height:160px;overflow-y:auto;display:none;box-shadow:var(--shadow);"></div>
+    </div>
+    <div style="margin-bottom:10px;"></div>
     <div class="modal-lbl">Precio de venta stock</div>
     <input class="finput" id="modal-stock-price" type="number" placeholder="Precio de venta..." value="${p.stockPrice||p.price||''}"/>
+    <div style="display:flex;align-items:center;gap:10px;background:var(--coral-bg);border:1.5px solid #f0c8a0;border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:4px;">
+      <input type="checkbox" id="modal-stock-entregado" style="width:18px;height:18px;accent-color:var(--coral);cursor:pointer;" ${p.status!=='stock-pagado-esp'&&p.stockBuyer?'checked':''}>
+      <label for="modal-stock-entregado" style="font-size:14px;color:var(--coral);font-weight:600;cursor:pointer;">Ya fue entregado</label>
+      <span style="font-size:11px;color:var(--text3);margin-left:auto;">sin tilde = pagó pero aún no retiró</span>
+    </div>
     `:''}
 
     ${modalAction==='eliminar'?`
@@ -720,7 +749,7 @@ function drawModal() {
       <div style="font-size:12px;color:var(--red);opacity:.8;">Se eliminará de la planilla actual. Esta acción no se puede deshacer.</div>
     </div>`:''}
 
-    <textarea class="mnote" id="modal-note-in" rows="2" placeholder="Nota opcional...">${p.note||''}</textarea>
+    <textarea class="mnote" id="modal-note-in" rows="2" placeholder="Fórmula del medicamento...">${p.note||''}</textarea>
     ${modalAction?`<button class="btn-primary" onclick="confirmAccion()" style="margin-bottom:0;">Confirmar</button>`:''}
     <button class="btn-secondary" onclick="closeModal()" style="margin-top:8px;">Cancelar</button>
   </div>`;
@@ -748,10 +777,12 @@ window.confirmAccion = async () => {
   if (modalAction === 'retiro' || modalAction === 'entregar') {
     if (!payMode) { toast('Seleccioná forma de pago'); return; }
     if (payMode==='transfer'&&!transferDest) { toast('Seleccioná destino'); return; }
+    const wasStockEsp = modalPatient.status === 'stock-pagado-esp';
     await update(ref(db,'patients/'+modalPatient._key), {
-      status:'done', payType:payMode, dest:transferDest||null, date:now(), note
+      status: wasStockEsp ? 'stock-sold' : 'done',
+      payType:payMode, dest:transferDest||null, date:now(), note
     });
-    toast('✅ Retiro registrado');
+    toast(wasStockEsp ? '🟠 Entrega de stock confirmada' : '✅ Retiro registrado');
     closeModal(); return;
   }
 
@@ -769,10 +800,21 @@ window.confirmAccion = async () => {
     if (!payMode) { toast('Seleccioná forma de pago'); return; }
     if (payMode==='transfer'&&!transferDest) { toast('Seleccioná destino'); return; }
     const precio = stockPrice || modalPatient.stockPrice || modalPatient.price;
-    await update(ref(db,'patients/'+modalPatient._key), {
-      status:'stock-sold', price: precio, payType:payMode, dest:transferDest||null, date:now(), note
-    });
-    toast('🟠 Stock vendido registrado');
+    const buyerEl = document.getElementById('modal-stock-buyer');
+    const stockBuyer = buyerEl ? buyerEl.value.trim() : (modalPatient.stockBuyer||'');
+    const entregadoEl = document.getElementById('modal-stock-entregado');
+    const entregado = entregadoEl ? entregadoEl.checked : true;
+    const nuevoEstado = entregado ? 'stock-sold' : 'stock-pagado-esp';
+    const updateData = {
+      status: nuevoEstado, price: precio,
+      payType:payMode, dest:transferDest||null, date:now(), note
+    };
+    if (stockBuyer) {
+      updateData.origName = modalPatient.origName || modalPatient.name;
+      updateData.name = stockBuyer;
+    }
+    await update(ref(db,'patients/'+modalPatient._key), updateData);
+    toast(entregado ? '🟠 Stock vendido y entregado' : '🟠 Stock vendido — pendiente de entrega');
     closeModal(); return;
   }
 
@@ -918,6 +960,7 @@ window.doSearch = v => {
   const esperando = list.filter(p=>p.status==='pagado-esperando');
   const liberados = list.filter(p=>p.status==='liberado');
   const stockSold = list.filter(p=>p.status==='stock-sold');
+  const stockEsp = list.filter(p=>p.status==='stock-pagado-esp');
 
   // Actualizar solo los filtros y la lista de pacientes, NO el input
   const fbtns = document.querySelector('.filters');
@@ -929,6 +972,7 @@ window.doSearch = v => {
   if (!list.length) h = `<div class="empty">Sin resultados</div>`;
   if (pending.length) { h += `<div class="sec">⏳ Pendientes · ${pending.length}</div>`; pending.forEach(p=>{ h+=pCard(p); }); }
   if (esperando.length) { h += `<div class="sec" style="color:var(--blue)">💙 Pagado · esperando entrega · ${esperando.length}</div>`; esperando.forEach(p=>{ h+=pCard(p); }); }
+  if (stockEsp.length) { h += `<div class="sec" style="color:var(--coral)">🟠 Stock · pagado / sin entregar · ${stockEsp.length}</div>`; stockEsp.forEach(p=>{ h+=pCard(p); }); }
   if (done.length) { h += `<div class="sec">✅ Retirados · ${done.length}</div>`; done.forEach(p=>{ h+=pCard(p); }); }
   if (liberados.length) { h += `<div class="sec" style="color:var(--purple)">🟣 Liberados en stock · ${liberados.length}</div>`; liberados.forEach(p=>{ h+=pCard(p); }); }
   if (stockSold.length) { h += `<div class="sec" style="color:var(--coral)">🟠 Stock vendido · ${stockSold.length}</div>`; stockSold.forEach(p=>{ h+=pCard(p); }); }
@@ -1069,6 +1113,41 @@ window.ocrCancelar = () => {
 
 function parseOCRText() {}
 parseOCRText._lastTotal = 0;
+
+// ─── STOCK BUYER AUTOCOMPLETE ─────────────────────────────────────────────────
+window.stockBuyerSearch = (val) => {
+  const box = document.getElementById('stock-buyer-suggestions');
+  if (!box) return;
+  const q = val.trim().toLowerCase();
+  if (!q) { box.style.display = 'none'; return; }
+
+  // Buscar en todos los pacientes de la planilla actual
+  const names = [...new Set(
+    Object.values(state.patients)
+      .map(p => p.name)
+      .filter(n => n && n.toLowerCase().includes(q))
+      .sort((a,b) => a.localeCompare(b, 'es'))
+  )].slice(0, 8);
+
+  if (!names.length) { box.style.display = 'none'; return; }
+
+  box.innerHTML = names.map((n,i) => {
+    const safeN = n.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    return `<div data-name="${safeN}"
+      style="padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid var(--border);"
+      onmousedown="event.preventDefault();selectStockBuyer(this.dataset.name)"
+      onmouseover="this.style.background='var(--green-light)'"
+      onmouseout="this.style.background=''">${safeN}</div>`;
+  }).join('');
+  box.style.display = 'block';
+};
+
+window.selectStockBuyer = (name) => {
+  const inp = document.getElementById('modal-stock-buyer');
+  if (inp) inp.value = name;
+  const box = document.getElementById('stock-buyer-suggestions');
+  if (box) box.style.display = 'none';
+};
 
 window.ocrAddPhotos = async (input) => {
   const files = Array.from(input.files);
